@@ -1,0 +1,15 @@
+contributor:
+  pr_merge_rate: 0.35
+  review_quality: 0.25
+  maintainer_approval: 0.15
+  project_scale: 0.10
+  contribution_consistency: 0.10
+  issue_resolution_rate: 0.05
+
+maintainer:
+  adoption_rate: 0.30
+  community_activity: 0.25
+  review_quality: 0.20
+  issue_response_speed: 0.10
+  release_consistency: 0.10
+  documentation_level: 0.05
