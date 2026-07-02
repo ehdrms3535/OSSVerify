@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -14,6 +15,36 @@ from ossverify.profile.profile_builder import ProfessionalProfile
 # Base58 alphabet (Bitcoin variant — required for did:key multibase encoding)
 _B58_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
+_AMOY_RPC_DEFAULT = "https://rpc-amoy.polygon.technology/"
+_AMOY_CHAIN_ID = 80002
+
+# OSSVerifyRegistry ABI — storeHash / getTimestamp
+CONTRACT_ABI = [
+    {
+        "inputs": [{"internalType": "bytes32", "name": "_hash", "type": "bytes32"}],
+        "name": "storeHash",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"internalType": "bytes32", "name": "_hash", "type": "bytes32"}],
+        "name": "getTimestamp",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "internalType": "bytes32", "name": "credentialHash", "type": "bytes32"},
+            {"indexed": False, "internalType": "uint256", "name": "timestamp", "type": "uint256"},
+        ],
+        "name": "HashStored",
+        "type": "event",
+    },
+]
+
 
 def _b58encode(data: bytes) -> str:
     leading_zeros = len(data) - len(data.lstrip(b"\x00"))
@@ -27,7 +58,7 @@ def _b58encode(data: bytes) -> str:
 
 
 # 발급된 VC를 메모리에 보관한다. VCVerifier가 이 스토어를 참조해 검증한다.
-# credential_id → {"document": dict, "hash": str, "public_key_bytes": bytes}
+# credential_id → {"document": dict, "hash": str, "public_key_bytes": bytes, "blockchain_tx": str}
 _credential_store: Dict[str, Dict[str, Any]] = {}
 
 
@@ -40,11 +71,17 @@ class VerifiableCredential:
 
 
 class VCIssuer:
-    """did:key + Ed25519 서명으로 W3C VC를 발급한다.
-    블록체인 앵커링은 Polygon Amoy testnet 연동 전까지 로컬 해시 저장으로 대체한다."""
+    """did:key + Ed25519 서명으로 W3C VC를 발급하고 Polygon Amoy testnet에 해시를 앵커링한다.
 
-    def __init__(self, polygon_rpc_url: str = None):
-        self.polygon_rpc_url = polygon_rpc_url
+    환경변수:
+      POLYGON_PRIVATE_KEY      — 트랜잭션 서명용 개인키 (0x 포함 가능)
+      POLYGON_CONTRACT_ADDRESS — 배포된 OSSVerifyRegistry 주소
+      POLYGON_RPC_URL          — Amoy RPC URL (기본값: public endpoint)
+
+    두 변수가 없으면 mock tx hash를 반환해 정상 발급은 유지한다.
+    """
+
+    def __init__(self) -> None:
         self._private_key: Ed25519PrivateKey = Ed25519PrivateKey.generate()
         self._public_key_bytes: bytes = self._private_key.public_key().public_bytes(
             Encoding.Raw, PublicFormat.Raw
@@ -80,7 +117,7 @@ class VCIssuer:
             },
         }
 
-    def sign(self, document: Dict[str, Any], private_key: bytes = None) -> Dict[str, Any]:
+    def sign(self, document: Dict[str, Any]) -> Dict[str, Any]:
         # proof 없이 정규화한 document에 서명 → proof 블록 추가
         canonical = json.dumps(document, sort_keys=True, ensure_ascii=False).encode("utf-8")
         signature_hex = self._private_key.sign(canonical).hex()
@@ -95,9 +132,46 @@ class VCIssuer:
         return signed
 
     def store_hash_on_chain(self, credential_hash: str) -> str:
-        # TODO: web3.py + Polygon Amoy testnet 컨트랙트 호출로 교체
-        # 현재는 해시 앞 64자리를 mock tx hash로 반환한다.
-        return "0x" + credential_hash[:64]
+        """SHA-256 해시를 Polygon Amoy OSSVerifyRegistry에 기록하고 tx hash를 반환한다.
+
+        POLYGON_PRIVATE_KEY 또는 POLYGON_CONTRACT_ADDRESS 가 없으면 mock을 반환한다.
+        """
+        private_key = os.getenv("POLYGON_PRIVATE_KEY", "")
+        contract_address = os.getenv("POLYGON_CONTRACT_ADDRESS", "")
+        if not private_key or not contract_address:
+            return "0x" + credential_hash[:64]
+
+        try:
+            from web3 import Web3
+
+            rpc = os.getenv("POLYGON_RPC_URL", _AMOY_RPC_DEFAULT)
+            w3 = Web3(Web3.HTTPProvider(rpc))
+
+            if not private_key.startswith("0x"):
+                private_key = "0x" + private_key
+            account = w3.eth.account.from_key(private_key)
+
+            contract = w3.eth.contract(
+                address=Web3.to_checksum_address(contract_address),
+                abi=CONTRACT_ABI,
+            )
+
+            hash_bytes = bytes.fromhex(credential_hash)
+            tx = contract.functions.storeHash(hash_bytes).build_transaction({
+                "from": account.address,
+                "nonce": w3.eth.get_transaction_count(account.address),
+                "gas": 100_000,
+                "gasPrice": w3.eth.gas_price,
+                "chainId": _AMOY_CHAIN_ID,
+            })
+            signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            return receipt.transactionHash.hex()
+
+        except Exception as exc:
+            # 블록체인 오류 시 mock으로 폴백 — VC 발급 자체는 중단하지 않음
+            return "0x" + credential_hash[:64] + f"_err:{type(exc).__name__}"
 
     def issue(self, profile: ProfessionalProfile) -> VerifiableCredential:
         issuer_did = self.generate_did()
@@ -105,14 +179,26 @@ class VCIssuer:
         signed = self.sign(document)
 
         credential_id = signed["id"]
+
+        # blockchainAnchor 추가 전 해시 계산 — 온체인에 기록되는 값과 검증 시 재계산 값이 일치해야 함
         canonical = json.dumps(signed, sort_keys=True, ensure_ascii=False).encode("utf-8")
         credential_hash = hashlib.sha256(canonical).hexdigest()
+
         blockchain_tx = self.store_hash_on_chain(credential_hash)
+
+        # 서명 이후에 추가되는 메타데이터 — 어느 컨트랙트에 기록됐는지 VC 문서 자체에 포함
+        # 검증자가 이 값을 읽어 어느 인스턴스의 컨트랙트를 조회할지 결정한다 (Model B 지원)
+        signed["proof"]["blockchainAnchor"] = {
+            "network": "polygon:amoy",
+            "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
+            "transactionHash": blockchain_tx,
+        }
 
         _credential_store[credential_id] = {
             "document": signed,
             "hash": credential_hash,
             "public_key_bytes": self._public_key_bytes,
+            "blockchain_tx": blockchain_tx,
         }
 
         return VerifiableCredential(

@@ -204,8 +204,12 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         raw_primary = ranked[0][0] if ranked else None
         raw_secondary = ranked[1][0] if len(ranked) > 1 else None
 
-        _blockchain_langs = {"Solidity", "Vyper", "Move", "Rust"}
+        _blockchain_langs = {"Solidity", "Vyper", "Move"}
+        _devops_langs = {"Shell", "HCL", "Dockerfile", "Makefile", "PowerShell", "Jsonnet"}
         top_skill_set = set(_top_skills(data.languages, limit=10))
+        total_lang_bytes = sum(data.languages.values()) or 1
+
+        # Blockchain 보정: 블록체인 전용 언어 없이 Blockchain 1위 → 2위로 스왑
         if (
             raw_primary is not None
             and raw_primary.value == "Blockchain"
@@ -214,6 +218,17 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         ):
             raw_primary, raw_secondary = raw_secondary, raw_primary
 
+        # DevOps 보정: DevOps 전용 언어(Shell/HCL/Dockerfile 등) 바이트 비중 20% 미만 → 2위로 스왑
+        # BERT가 CI/Docker 커밋 텍스트를 DevOps로 과도하게 분류하는 편향 보정
+        if (
+            raw_primary is not None
+            and raw_primary.value == "DevOps"
+            and raw_secondary is not None
+        ):
+            devops_bytes = sum(data.languages.get(l, 0) for l in _devops_langs)
+            if devops_bytes / total_lang_bytes < 0.20:
+                raw_primary, raw_secondary = raw_secondary, raw_primary
+
         primary_domain = raw_primary.value if raw_primary else None
         secondary_domain = raw_secondary.value if raw_secondary else None
         if raw_primary:
@@ -221,11 +236,14 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
 
     top_skills = _top_skills(data.languages)
 
+    # PageRank 50% + GNN 50% 혼합 — 구조적 중심성과 학습된 임베딩을 동등 반영
+    combined_centrality = (graph_centrality.pagerank_score + graph_centrality.gnn_score) / 2
+
     final_score = ScoreCalculator().calculate(
         ScoreFeatures(
             influence_score=final_influence,
             domain_scores=domain_scores,
-            graph_centrality=graph_centrality.pagerank_score,
+            graph_centrality=combined_centrality,
             activity_ratio=data.activity_ratio,
             total_activity_count=_total_activity_count(data),
         )
@@ -272,7 +290,11 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         "top_skills": top_skills,
         "influence_level": final_score.influence_level,
         "activity_level": final_score.activity_level,
-        "graph_centrality": graph_centrality.pagerank_score,
+        "graph_centrality": {
+            "pagerank_score": graph_centrality.pagerank_score,
+            "gnn_score": graph_centrality.gnn_score,
+            "combined": round(combined_centrality, 2),
+        },
         "explanation": {
             "summary": exp_output.summary if exp_output else None,
             "reasons": exp_output.reasons if exp_output else [],
@@ -355,6 +377,8 @@ def verify_credential(credential_id: str):
             "credential_id": credential_id,
             "is_valid": result.is_valid,
             "is_tampered": result.is_tampered,
+            "is_on_chain": result.is_on_chain,
+            "blockchain_tx": result.blockchain_tx,
             "issuer": result.issuer,
             "issued_at": result.issued_at.isoformat(),
             "credential_subject": result.credential_subject,

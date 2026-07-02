@@ -170,6 +170,56 @@ SDK (Node.js / Python)
 
 ---
 
+## Self-hosting
+
+OSSVerify는 누구나 자신의 인프라에 독립적으로 배포할 수 있습니다.  
+각 배포본은 자체 이슈어 지갑과 독립적인 `OSSVerifyRegistry` 컨트랙트를 가지며, 레퍼런스 인스턴스에 종속되지 않습니다.
+
+### 요구사항
+
+- Python 3.9+
+- GitHub Personal Access Token
+- Polygon Amoy 지갑 + POL 테스트 토큰 ([faucet](https://faucet.polygon.technology/))
+- Anthropic API Key (선택, Explainable AI용)
+
+### 배포 순서
+
+```bash
+# 1. 클론 및 의존성 설치
+git clone https://github.com/your-org/ossverify
+cd ossverify
+pip install -r requirements.txt
+
+# 2. 환경변수 설정
+cp .env.example .env
+# .env 파일에 GITHUB_TOKEN, POLYGON_PRIVATE_KEY 등 입력
+
+# 3. 지갑 생성 (없는 경우)
+python -c "from web3 import Web3; a=Web3().eth.account.create(); print('주소:', a.address, '\n개인키:', a.key.hex())"
+
+# 4. OSSVerifyRegistry 컨트랙트 배포 (1회)
+python -m ossverify.credential.deploy_contract
+# 출력된 컨트랙트 주소를 .env의 POLYGON_CONTRACT_ADDRESS에 추가
+
+# 5. 서버 실행
+uvicorn ossverify.api.main:app --host 0.0.0.0 --port 8000
+```
+
+### 도메인 분류 모델 학습 (선택)
+
+```bash
+# 학습 데이터 수집
+python -m ossverify.analyzer.training.dataset_builder
+
+# BERT 파인튜닝
+python -m ossverify.analyzer.training.train
+```
+
+> 각 인스턴스가 발급한 VC는 자체 컨트랙트 주소를 `proof.blockchainAnchor`에 포함하므로,  
+> 다른 인스턴스의 검증자도 올바른 컨트랙트에서 해시를 조회할 수 있습니다.
+
+---
+
 ## 라이선스
 
 이 프로젝트는 오픈소스로 공개됩니다.
