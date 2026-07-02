@@ -174,36 +174,32 @@ class VCIssuer:
             return "0x" + credential_hash[:64] + f"_err:{type(exc).__name__}"
 
     def issue(self, profile: ProfessionalProfile) -> VerifiableCredential:
+        """VC를 발급한다 (서명 + 해시 + 메모리 저장).
+
+        온체인 앵커링은 이 메서드에서 수행하지 않는다.
+        블록체인 기록이 필요하면 POST /api/v1/credential/anchor 를 별도로 호출한다.
+        이 분리 덕분에 공개 엔드포인트(/credential/issue)가 실제 체인 트랜잭션을 유발하지 않는다.
+        """
         issuer_did = self.generate_did()
         document = self.build_credential_document(profile, issuer_did)
         signed = self.sign(document)
 
         credential_id = signed["id"]
 
-        # blockchainAnchor 추가 전 해시 계산 — 온체인에 기록되는 값과 검증 시 재계산 값이 일치해야 함
+        # 서명 직후 해시 계산 — anchor() 호출 시 온체인에 기록되는 값과 일치해야 함
         canonical = json.dumps(signed, sort_keys=True, ensure_ascii=False).encode("utf-8")
         credential_hash = hashlib.sha256(canonical).hexdigest()
-
-        blockchain_tx = self.store_hash_on_chain(credential_hash)
-
-        # 서명 이후에 추가되는 메타데이터 — 어느 컨트랙트에 기록됐는지 VC 문서 자체에 포함
-        # 검증자가 이 값을 읽어 어느 인스턴스의 컨트랙트를 조회할지 결정한다 (Model B 지원)
-        signed["proof"]["blockchainAnchor"] = {
-            "network": "polygon:amoy",
-            "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
-            "transactionHash": blockchain_tx,
-        }
 
         _credential_store[credential_id] = {
             "document": signed,
             "hash": credential_hash,
             "public_key_bytes": self._public_key_bytes,
-            "blockchain_tx": blockchain_tx,
+            "blockchain_tx": None,  # anchor() 호출 전까지 None
         }
 
         return VerifiableCredential(
             credential_id=credential_id,
             document=signed,
-            blockchain_tx=blockchain_tx,
+            blockchain_tx=None,
             issued_at=datetime.now(timezone.utc),
         )

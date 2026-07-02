@@ -480,8 +480,9 @@ def anchor_credential(
 ):
     """발급된 VC를 Polygon Amoy 온체인에 앵커링한다.
 
-    VC credentialSubject.githubUsername 과 인증 사용자가 일치해야 한다.
-    이미 앵커링된 경우에도 호출 가능 (컨트랙트에서 중복 등록 거부 → 오류 반환).
+    /credential/issue는 서명만 수행하므로, 블록체인 기록이 필요한 경우
+    VC 주체 본인이 이 엔드포인트를 별도로 호출해야 한다.
+    VC credentialSubject.githubUsername과 인증 사용자가 일치해야 한다.
     """
     from ossverify.credential.vc_issuer import _credential_store as _store
 
@@ -489,21 +490,30 @@ def anchor_credential(
     if entry is None:
         return error_response("NOT_FOUND", f"'{request.credential_id}' VC를 찾을 수 없습니다.", 404)
 
+    if entry.get("blockchain_tx"):
+        return error_response(
+            "ALREADY_ANCHORED",
+            f"이미 앵커링된 VC입니다 (tx: {entry['blockchain_tx']}).",
+            status_code=409,
+        )
+
     subject_username = entry["document"].get("credentialSubject", {}).get("githubUsername", "")
     _check_self_match(subject_username, authorization)
 
     blockchain_tx = _vc_issuer.store_hash_on_chain(entry["hash"])
+    is_on_chain = "_err:" not in blockchain_tx
 
-    # proof.blockchainAnchor 갱신
-    entry["document"]["proof"]["blockchainAnchor"] = {
-        "network": "polygon:amoy",
-        "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
-        "transactionHash": blockchain_tx,
-    }
-    entry["blockchain_tx"] = blockchain_tx
+    if is_on_chain:
+        # 앵커링 성공 시에만 proof에 blockchainAnchor 추가
+        entry["document"]["proof"]["blockchainAnchor"] = {
+            "network": "polygon:amoy",
+            "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
+            "transactionHash": blockchain_tx,
+        }
+        entry["blockchain_tx"] = blockchain_tx
 
     return success_response({
         "credential_id": request.credential_id,
         "blockchain_tx": blockchain_tx,
-        "is_on_chain": "_err:" not in blockchain_tx,
+        "is_on_chain": is_on_chain,
     })

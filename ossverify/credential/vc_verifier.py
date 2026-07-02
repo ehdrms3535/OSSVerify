@@ -70,7 +70,7 @@ class VCVerifier:
         anchor = document.get("proof", {}).get("blockchainAnchor", {})
         contract_address = anchor.get("contractAddress", "")
         if not contract_address:
-            return True  # mock 모드: 온체인 검증 생략
+            return False  # blockchainAnchor 없음 = 앵커링 미완료
 
         try:
             from web3 import Web3
@@ -127,8 +127,10 @@ class VCVerifier:
         except ValueError:
             issued_at = datetime.utcnow()
 
+        # is_valid = 서명·무결성 기반 (W3C VC 핵심 요건)
+        # is_on_chain은 별도 필드 — 앵커링 안 된 데모 VC도 is_valid=True 가능
         return VerificationResult(
-            is_valid=not is_tampered and signature_valid and is_on_chain,
+            is_valid=not is_tampered and signature_valid,
             is_tampered=is_tampered,
             is_on_chain=is_on_chain,
             issued_at=issued_at,
@@ -171,7 +173,9 @@ class VCVerifier:
         anchor = document.get("proof", {}).get("blockchainAnchor", {})
         blockchain_tx: Optional[str] = anchor.get("transactionHash")
 
-        return self._verify_core(document, credential_hash, public_key_bytes, blockchain_tx)
+        result = self._verify_core(document, credential_hash, public_key_bytes, blockchain_tx)
+        # 외부 VC: is_valid는 서명 무결성 기준, is_on_chain은 별도 판단
+        return result
 
     def verify(
         self,
