@@ -7,44 +7,56 @@ from typing import List, Optional, Tuple
 from ossverify.collector.github_collector import ActivityRatio, GitHubData
 
 
+def _weighted_sum(terms: List[Tuple[float, float]]) -> float:
+    """(value, weight) 쌍 목록에서 가중 평균을 계산. 총 가중치로 정규화."""
+    total_w = sum(w for _, w in terms)
+    if total_w == 0:
+        return 0.0
+    return sum(v * w for v, w in terms) / total_w
+
+
 @dataclass
 class ContributorScore:
     pr_merge_rate: float
-    review_quality: float
+    review_quality: Optional[float]  # 리뷰 0건이면 None (데이터 없음)
     maintainer_approval: float
     project_scale: float
     contribution_consistency: float
     issue_resolution_rate: float
 
     def calculate(self) -> float:
-        return (
-            self.pr_merge_rate * 0.35
-            + self.review_quality * 0.25
-            + self.maintainer_approval * 0.15
-            + self.project_scale * 0.10
-            + self.contribution_consistency * 0.10
-            + self.issue_resolution_rate * 0.05
-        )
+        terms: List[Tuple[float, float]] = [
+            (self.pr_merge_rate, 0.35),
+            (self.maintainer_approval, 0.15),
+            (self.project_scale, 0.10),
+            (self.contribution_consistency, 0.10),
+            (self.issue_resolution_rate, 0.05),
+        ]
+        if self.review_quality is not None:
+            terms.append((self.review_quality, 0.25))
+        return _weighted_sum(terms)
 
 
 @dataclass
 class MaintainerScore:
     adoption_rate: float
     community_activity: float
-    review_quality: float
+    review_quality: Optional[float]  # 리뷰 0건이면 None (데이터 없음)
     issue_response_speed: float
     release_consistency: float
     documentation_level: float
 
     def calculate(self) -> float:
-        return (
-            self.adoption_rate * 0.30
-            + self.community_activity * 0.25
-            + self.review_quality * 0.20
-            + self.issue_response_speed * 0.10
-            + self.release_consistency * 0.10
-            + self.documentation_level * 0.05
-        )
+        terms: List[Tuple[float, float]] = [
+            (self.adoption_rate, 0.30),
+            (self.community_activity, 0.25),
+            (self.issue_response_speed, 0.10),
+            (self.release_consistency, 0.10),
+            (self.documentation_level, 0.05),
+        ]
+        if self.review_quality is not None:
+            terms.append((self.review_quality, 0.20))
+        return _weighted_sum(terms)
 
 
 def calculate_final_influence(
@@ -77,6 +89,13 @@ def _ratio_score(matched: int, total: int) -> float:
     return matched / total * 100
 
 
+def _ratio_score_nullable(matched: int, total: int) -> Optional[float]:
+    """total이 0이면 None 반환 — 데이터 자체가 없는 경우."""
+    if total == 0:
+        return None
+    return matched / total * 100
+
+
 def _log_scale(value: float, cap: float) -> float:
     if value <= 0:
         return 0.0
@@ -106,7 +125,7 @@ class InfluenceAnalyzer:
 
         return ContributorScore(
             pr_merge_rate=_ratio_score(sum(1 for pr in prs if pr.merged), len(prs)),
-            review_quality=_ratio_score(sum(1 for r in reviews if r.led_to_change), len(reviews)),
+            review_quality=_ratio_score_nullable(sum(1 for r in reviews if r.led_to_change), len(reviews)),
             maintainer_approval=_ratio_score(sum(1 for pr in prs if pr.approved), len(prs)),
             project_scale=_log_scale(avg_stars, cap=100_000),
             contribution_consistency=_date_spread_score(contribution_dates, full_score_days=730, full_score_months=24),
@@ -142,7 +161,7 @@ class InfluenceAnalyzer:
         return MaintainerScore(
             adoption_rate=_log_scale(total_stars + total_forks * 0.5, cap=200_000),
             community_activity=_log_scale(len(external_contributors), cap=200),
-            review_quality=_ratio_score(sum(1 for r in maintainer_reviews if r.led_to_change), len(maintainer_reviews)),
+            review_quality=_ratio_score_nullable(sum(1 for r in maintainer_reviews if r.led_to_change), len(maintainer_reviews)),
             issue_response_speed=0.0 if avg_response_days is None else max(0.0, 100 - _log_scale(avg_response_days, cap=90)),
             release_consistency=_date_spread_score(
                 [_parse_dt(r.published_at) for r in releases], full_score_days=365, full_score_months=12
