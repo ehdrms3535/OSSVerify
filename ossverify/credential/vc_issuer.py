@@ -114,6 +114,18 @@ class VCIssuer:
                 "activityLevel": profile.activity_level,
                 "topSkills": profile.top_skills,
                 "domainScores": profile.domain_scores,
+                "evaluationBasis": (
+                    "Algorithmic analysis of public GitHub activity data "
+                    "(commits, pull requests, issues, code reviews). "
+                    "Scores reflect open-source contribution influence "
+                    "as estimated by OSSVerify's AI model."
+                ),
+                "disclaimer": (
+                    "This credential is an algorithmic estimate, "
+                    "not a formal professional certification. "
+                    "No liability is assumed for hiring or evaluation decisions "
+                    "made on the basis of this credential."
+                ),
             },
         }
 

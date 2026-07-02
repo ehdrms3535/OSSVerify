@@ -143,17 +143,19 @@ class VCVerifier:
         """외부 인스턴스 발급 VC — did:key issuer에서 공개키를 디코딩해 검증한다.
 
         _credential_store에 없어도 동작하므로 다른 인스턴스의 VC를 검증할 수 있다.
-        서명 무결성이 곧 tamper 감지 기준이다.
+        내부 검증(_verify_core)과 달리 비교할 stored_hash가 없으므로
+        서명 유효성 자체가 tamper 감지 기준이다.
         """
         issuer_did = document.get("issuer", "")
+        issued_at_str = document.get("issuanceDate", "")
+        try:
+            issued_at = datetime.fromisoformat(issued_at_str)
+        except ValueError:
+            issued_at = datetime.utcnow()
+
         try:
             public_key_bytes = _decode_did_key(issuer_did)
-        except ValueError as exc:
-            issued_at_str = document.get("issuanceDate", "")
-            try:
-                issued_at = datetime.fromisoformat(issued_at_str)
-            except ValueError:
-                issued_at = datetime.utcnow()
+        except ValueError:
             return VerificationResult(
                 is_valid=False,
                 is_tampered=True,
@@ -163,19 +165,40 @@ class VCVerifier:
                 credential_subject=document.get("credentialSubject", {}),
             )
 
-        # 해시 재계산 (blockchainAnchor 제외) → 온체인 확인에 사용
+        # 서명 검증 — 외부 VC에서는 이것이 무결성 검증이자 tamper 감지
+        proof = document.get("proof", {})
+        signature_valid = False
+        if proof:
+            doc_without_proof = {k: v for k, v in document.items() if k != "proof"}
+            original_canonical = json.dumps(
+                doc_without_proof, sort_keys=True, ensure_ascii=False
+            ).encode("utf-8")
+            try:
+                pub_key = Ed25519PublicKey.from_public_bytes(public_key_bytes)
+                pub_key.verify(bytes.fromhex(proof.get("proofValue", "")), original_canonical)
+                signature_valid = True
+            except (InvalidSignature, ValueError):
+                signature_valid = False
+
+        # 온체인 확인 — blockchainAnchor 제외 후 해시 재계산
         canonical_for_hash = json.dumps(
             _doc_without_anchor(document), sort_keys=True, ensure_ascii=False
         ).encode("utf-8")
         credential_hash = hashlib.sha256(canonical_for_hash).hexdigest()
+        is_on_chain = self._check_on_chain(credential_hash, document)
 
-        # 온체인 tx hash는 blockchainAnchor에서 직접 읽음
-        anchor = document.get("proof", {}).get("blockchainAnchor", {})
+        anchor = proof.get("blockchainAnchor", {})
         blockchain_tx: Optional[str] = anchor.get("transactionHash")
 
-        result = self._verify_core(document, credential_hash, public_key_bytes, blockchain_tx)
-        # 외부 VC: is_valid는 서명 무결성 기준, is_on_chain은 별도 판단
-        return result
+        return VerificationResult(
+            is_valid=signature_valid,
+            is_tampered=not signature_valid,  # 서명 실패 = 내용 변조로 간주
+            is_on_chain=is_on_chain,
+            issued_at=issued_at,
+            issuer=issuer_did,
+            credential_subject=document.get("credentialSubject", {}),
+            blockchain_tx=blockchain_tx,
+        )
 
     def verify(
         self,
