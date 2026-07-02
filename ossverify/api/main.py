@@ -88,12 +88,77 @@ def _top_skills(languages: dict, limit: int = 5) -> list:
     return [name for name, _ in sorted(languages.items(), key=lambda item: item[1], reverse=True)[:limit]]
 
 
+# 언어 → 도메인 사전 신호 (바이트 비중 기반 혼합에 사용)
+# 학습 데이터가 CI/Docker 키워드에 편향될 수 있어 언어 비중으로 보정
+_LANGUAGE_DOMAIN_SIGNAL: Dict[str, Dict[str, float]] = {
+    "Python":           {"Backend": 0.35, "AI/ML": 0.40, "DevOps": 0.15, "Cloud": 0.10},
+    "JavaScript":       {"Frontend": 0.50, "Backend": 0.30, "DevOps": 0.10, "Cloud": 0.10},
+    "TypeScript":       {"Frontend": 0.50, "Backend": 0.30, "DevOps": 0.10, "Cloud": 0.10},
+    "Java":             {"Backend": 0.60, "Cloud": 0.20, "DevOps": 0.10, "AI/ML": 0.10},
+    "Kotlin":           {"Backend": 0.50, "Frontend": 0.30, "Cloud": 0.15, "AI/ML": 0.05},
+    "Go":               {"Backend": 0.40, "DevOps": 0.30, "Cloud": 0.20, "Security": 0.10},
+    "Rust":             {"Backend": 0.35, "Blockchain": 0.25, "Security": 0.25, "DevOps": 0.15},
+    "C#":               {"Backend": 0.50, "Frontend": 0.20, "Cloud": 0.20, "AI/ML": 0.10},
+    "C++":              {"Backend": 0.30, "AI/ML": 0.35, "Security": 0.20, "Blockchain": 0.15},
+    "C":                {"Backend": 0.40, "Security": 0.25, "DevOps": 0.20, "AI/ML": 0.15},
+    "Ruby":             {"Backend": 0.65, "Frontend": 0.15, "DevOps": 0.20},
+    "PHP":              {"Backend": 0.65, "Frontend": 0.25, "DevOps": 0.10},
+    "Swift":            {"Frontend": 0.60, "Backend": 0.25, "AI/ML": 0.15},
+    "Dart":             {"Frontend": 0.90, "Backend": 0.10},
+    "Shell":            {"DevOps": 0.55, "Cloud": 0.25, "Backend": 0.20},
+    "HCL":              {"Cloud": 0.70, "DevOps": 0.30},
+    "Dockerfile":       {"DevOps": 0.65, "Cloud": 0.35},
+    "Vue":              {"Frontend": 0.90, "Backend": 0.10},
+    "HTML":             {"Frontend": 0.75, "Backend": 0.15, "DevOps": 0.10},
+    "CSS":              {"Frontend": 0.90, "Backend": 0.10},
+    "SCSS":             {"Frontend": 0.90, "Backend": 0.10},
+    "Solidity":         {"Blockchain": 0.90, "Backend": 0.10},
+    "Vyper":            {"Blockchain": 0.95, "Backend": 0.05},
+    "R":                {"AI/ML": 0.90, "Backend": 0.10},
+    "CUDA":             {"AI/ML": 0.85, "Backend": 0.15},
+    "Jupyter Notebook": {"AI/ML": 0.80, "Backend": 0.15, "Cloud": 0.05},
+}
+
+
+def _blend_language_signal(
+    bert_scores: Dict[Domain, float],
+    languages: Dict[str, int],
+    lang_weight: float = 0.35,
+) -> Dict[Domain, float]:
+    """BERT 점수에 언어 바이트 비중 신호를 혼합해 CI/Docker 키워드 편향을 보정."""
+    total_bytes = sum(languages.values())
+    if total_bytes == 0:
+        return bert_scores
+
+    lang_signal: Dict[Domain, float] = {d: 0.0 for d in Domain}
+    for lang, byte_count in languages.items():
+        proportion = byte_count / total_bytes
+        domain_map = _LANGUAGE_DOMAIN_SIGNAL.get(lang)
+        if domain_map:
+            for domain_val, weight in domain_map.items():
+                try:
+                    lang_signal[Domain(domain_val)] += proportion * weight
+                except ValueError:
+                    pass
+
+    return {
+        d: (1 - lang_weight) * bert_scores.get(d, 0.0) + lang_weight * lang_signal[d]
+        for d in Domain
+    }
+
+
 def _domain_text_corpus(data: GitHubData) -> str:
-    description_text = " ".join(repo.description for repo in data.owned_repos if repo.description)
+    # 스타 순 정렬 후 상위 3개 description 3회 반복
+    # — 학습 데이터(dataset_builder.py)와 동일 방식, CI/Docker 커밋 노이즈 희석
+    top_repos = sorted(data.owned_repos, key=lambda r: r.stars, reverse=True)
+    top_desc = " ".join(
+        " ".join([r.description] * 3) for r in top_repos[:3] if r.description
+    )
+    rest_desc = " ".join(r.description for r in top_repos[3:] if r.description)
     commit_text = " ".join(c.message for c in data.contributed_commits)
     pr_text = " ".join(pr.title for pr in data.contributed_prs + data.received_prs)
     review_text = " ".join(r.body for r in data.contributed_reviews + data.maintainer_reviews if r.body)
-    return f"{description_text} {commit_text} {pr_text} {review_text}".strip()
+    return f"{top_desc} {rest_desc} {commit_text} {pr_text} {review_text}".strip()
 
 
 def _profile_to_dict(profile: ProfessionalProfile) -> dict:
@@ -132,9 +197,12 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
     primary_domain_enum: Domain = Domain.BACKEND
     if _domain_analyzer is not None:
         domain_result = _domain_analyzer.infer(_domain_text_corpus(data))
-        domain_scores = {d.value: round(score * 100, 1) for d, score in domain_result.domains.items()}
-        raw_primary = domain_result.primary_domain
-        raw_secondary = domain_result.secondary_domain
+        # 언어 바이트 비중 35% 혼합 — CI/Docker 커밋 키워드로 인한 DevOps 편향 보정
+        blended = _blend_language_signal(domain_result.domains, data.languages)
+        ranked = sorted(blended.items(), key=lambda x: x[1], reverse=True)
+        domain_scores = {d.value: round(score * 100, 1) for d, score in blended.items()}
+        raw_primary = ranked[0][0] if ranked else None
+        raw_secondary = ranked[1][0] if len(ranked) > 1 else None
 
         _blockchain_langs = {"Solidity", "Vyper", "Move", "Rust"}
         top_skill_set = set(_top_skills(data.languages, limit=10))
