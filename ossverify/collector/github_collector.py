@@ -374,6 +374,9 @@ class GitHubCollector:
 
         reviews = []
         for (full_name, pr_number), info in pr_data.items():
+            # 자기 PR에 자기가 리뷰한 경우 제외 (self-review)
+            if info.get("pr_author") == username:
+                continue
             commit_dates = info.get("commit_dates", [])
             for review in info.get("reviews", []):
                 if not review:
@@ -397,6 +400,10 @@ class GitHubCollector:
 
         reviews = []
         for (full_name, pr_number), info in pr_data.items():
+            # 자기 repo에 자기가 올린 PR은 received_prs 필터에서 이미 제외되지만
+            # GraphQL 응답에 pr_author가 있으면 한 번 더 검사
+            if info.get("pr_author") == username:
+                continue
             commit_dates = info.get("commit_dates", [])
             for review in info.get("reviews", []):
                 if not review:

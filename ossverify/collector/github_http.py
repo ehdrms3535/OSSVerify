@@ -191,6 +191,7 @@ class GitHubHTTPClient:
                 field_parts.append(
                     f'{alias}: repository(owner: {json.dumps(owner)}, name: {json.dumps(name)}) {{'
                     f'  pullRequest(number: {pr_number}) {{'
+                    f'    author {{ login }}'
                     f'    reviews(first: 20) {{ nodes {{ state author {{ login }} submittedAt body }} }}'
                     f'    commits(first: 50) {{ nodes {{ commit {{ committedDate }} }} }}'
                     f'  }}'
@@ -223,9 +224,11 @@ class GitHubHTTPClient:
                     if node and node.get("commit") and node["commit"].get("committedDate")
                 ]
                 review_nodes = (pr_data.get("reviews") or {}).get("nodes") or []
+                pr_author = (pr_data.get("author") or {}).get("login", "")
                 results[key] = {
                     "reviews": [r for r in review_nodes if r],
                     "commit_dates": commit_dates,
+                    "pr_author": pr_author,
                 }
 
         return results

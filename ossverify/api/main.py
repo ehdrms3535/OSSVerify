@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
+import requests as _http
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -59,6 +60,48 @@ class AnalyzeRequest(BaseModel):
 
 class IssueCredentialRequest(BaseModel):
     github_username: str
+
+
+class AnchorRequest(BaseModel):
+    credential_id: str
+
+
+class VerifyDocumentRequest(BaseModel):
+    document: dict
+
+
+def _check_self_match(github_username: str, authorization: Optional[str]) -> str:
+    """Authorization: Bearer <token> 으로 GitHub 인증 사용자 == github_username 검증.
+
+    성공 시 토큰을 반환해 분석에 재사용한다.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="GitHub 토큰이 필요합니다 (Authorization: Bearer <token>).",
+        )
+    token = authorization.split(" ", 1)[1]
+    try:
+        resp = _http.get(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            timeout=10,
+        )
+    except Exception:
+        raise HTTPException(status_code=503, detail="GitHub API 호출에 실패했습니다.")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="GitHub 토큰 인증에 실패했습니다.")
+    authed_login: str = resp.json().get("login", "")
+    if authed_login.lower() != github_username.lower():
+        raise HTTPException(
+            status_code=403,
+            detail=f"인증된 사용자({authed_login})와 요청 대상({github_username})이 일치하지 않습니다.",
+        )
+    return token
 
 
 def success_response(data: Any) -> dict:
@@ -387,3 +430,80 @@ def verify_credential(credential_id: str):
         return error_response("NOT_FOUND", f"'{credential_id}' VC를 찾을 수 없습니다.", status_code=404)
     except Exception as e:
         return error_response("VERIFICATION_FAILED", str(e), status_code=500)
+
+
+@app.post("/api/v1/credential/verify")
+def verify_credential_document(request: VerifyDocumentRequest):
+    """외부 VC 문서를 직접 검증한다.
+
+    did:key issuer에서 공개키를 디코딩하므로 다른 인스턴스가 발급한 VC도 검증 가능하다.
+    """
+    try:
+        result = VCVerifier().verify(document=request.document)
+        doc_id = request.document.get("id", "")
+        return success_response({
+            "credential_id": doc_id,
+            "is_valid": result.is_valid,
+            "is_tampered": result.is_tampered,
+            "is_on_chain": result.is_on_chain,
+            "blockchain_tx": result.blockchain_tx,
+            "issuer": result.issuer,
+            "issued_at": result.issued_at.isoformat(),
+            "credential_subject": result.credential_subject,
+        })
+    except Exception as e:
+        return error_response("VERIFICATION_FAILED", str(e), status_code=500)
+
+
+@app.post("/api/v1/analyze/self")
+def analyze_self(
+    request: AnalyzeRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """본인 프로필만 분석할 수 있는 인증 엔드포인트.
+
+    Authorization 헤더의 GitHub 토큰이 github_username과 일치해야 한다.
+    토큰을 분석에도 재사용하므로 별도의 github_token 필드는 무시된다.
+    """
+    token = _check_self_match(request.github_username, authorization)
+    authed_request = AnalyzeRequest(github_username=request.github_username, github_token=token)
+    job_id = str(uuid.uuid4())
+    _job_store[job_id] = {"status": JobStatus.PENDING, "data": None, "error": None}
+    _analyze_pool.submit(_run_analyze_job, job_id, authed_request)
+    return success_response({"job_id": job_id, "status": JobStatus.PENDING})
+
+
+@app.post("/api/v1/credential/anchor")
+def anchor_credential(
+    request: AnchorRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """발급된 VC를 Polygon Amoy 온체인에 앵커링한다.
+
+    VC credentialSubject.githubUsername 과 인증 사용자가 일치해야 한다.
+    이미 앵커링된 경우에도 호출 가능 (컨트랙트에서 중복 등록 거부 → 오류 반환).
+    """
+    from ossverify.credential.vc_issuer import _credential_store as _store
+
+    entry = _store.get(request.credential_id)
+    if entry is None:
+        return error_response("NOT_FOUND", f"'{request.credential_id}' VC를 찾을 수 없습니다.", 404)
+
+    subject_username = entry["document"].get("credentialSubject", {}).get("githubUsername", "")
+    _check_self_match(subject_username, authorization)
+
+    blockchain_tx = _vc_issuer.store_hash_on_chain(entry["hash"])
+
+    # proof.blockchainAnchor 갱신
+    entry["document"]["proof"]["blockchainAnchor"] = {
+        "network": "polygon:amoy",
+        "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
+        "transactionHash": blockchain_tx,
+    }
+    entry["blockchain_tx"] = blockchain_tx
+
+    return success_response({
+        "credential_id": request.credential_id,
+        "blockchain_tx": blockchain_tx,
+        "is_on_chain": "_err:" not in blockchain_tx,
+    })
