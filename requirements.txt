@@ -1,5 +1,7 @@
 fastapi
 uvicorn
+pytest
+httpx
 pydantic
 requests
 PyYAML
