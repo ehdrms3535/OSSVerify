@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSSVerify Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #58a6ff;
+      letter-spacing: -0.5px;
+    }
+
+    header .subtitle {
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 48px auto;
+      padding: 0 24px;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"], input[type="password"] {
+      flex: 1;
+      min-width: 200px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: #58a6ff; }
+
+    button {
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #2ea043; }
+    button:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+    button.secondary { background: #21262d; border: 1px solid #30363d; }
+    button.secondary:hover { background: #30363d; }
+
+    .status-bar {
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .status-bar.error { color: #f85149; }
+    .status-bar.ok { color: #3fb950; }
+
+    /* ── Score grid ── */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .score-tile {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .score-tile .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f0f6fc;
+    }
+
+    .score-tile .label {
+      font-size: 0.72rem;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+
+    /* ── VC card ── */
+    .vc-card {
+      background: #0d1117;
+      border: 1px solid #388bfd55;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 16px;
+      position: relative;
+    }
+
+    .vc-badge {
+      display: inline-block;
+      background: #388bfd22;
+      border: 1px solid #388bfd55;
+      color: #58a6ff;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .vc-field { margin-bottom: 8px; font-size: 0.85rem; }
+    .vc-field span { color: #8b949e; margin-right: 6px; }
+    .vc-field code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.78rem;
+      background: #21262d;
+      padding: 1px 5px;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+
+    .valid-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .valid-badge.valid { background: #1a4731; color: #3fb950; }
+    .valid-badge.invalid { background: #3d1a1a; color: #f85149; }
+
+    /* ── Verify section ── */
+    .verify-result {
+      margin-top: 16px;
+      padding: 16px;
+      background: #0d1117;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      font-size: 0.85rem;
+    }
+
+    .row-kv { display: flex; gap: 12px; margin-bottom: 6px; align-items: baseline; }
+    .row-kv .k { color: #8b949e; min-width: 120px; }
+    .row-kv .v { color: #c9d1d9; word-break: break-all; }
+    .row-kv .v.yes { color: #3fb950; }
+    .row-kv .v.no { color: #f85149; }
+
+    /* ── JSON viewer ── */
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-size: 0.8rem; color: #8b949e; user-select: none; }
+    pre.json-view {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.75rem;
+      overflow-x: auto;
+      margin-top: 8px;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+
+    /* Server URL bar */
+    .server-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+    }
+
+    .server-row label { color: #8b949e; white-space: nowrap; }
+
+    .domain-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .pill {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">OSSVerify</div>
+  <div class="subtitle">Open Source Contribution Intelligence · Demo</div>
+</header>
+
+<div class="container">
+
+  <!-- Server config -->
+  <div class="server-row">
+    <label>API Server:</label>
+    <input type="text" id="serverUrl" value="http://localhost:8000" style="max-width:260px;flex:none;" />
+  </div>
+
+  <!-- Step 1: Analyze -->
+  <div class="card">
+    <h2>1 · Analyze GitHub User</h2>
+    <div class="form-row">
+      <input type="text" id="usernameInput" placeholder="GitHub username (e.g. torvalds)" />
+      <input type="text" id="tokenInput" placeholder="GitHub token (optional, for higher rate limit)" />
+      <button id="analyzeBtn" onclick="runAnalyze()">Analyze</button>
+    </div>
+    <div class="status-bar" id="analyzeStatus"></div>
+    <div id="analyzeResult" class="hidden"></div>
+  </div>
+
+  <!-- Step 2: Issue VC -->
+  <div class="card" id="issueSection" style="display:none">
+    <h2>2 · Issue Verifiable Credential</h2>
+    <div class="form-row">
+      <button id="issueBtn" onclick="runIssue()">Issue VC</button>
+    </div>
+    <div class="status-bar" id="issueStatus"></div>
+    <div id="issueResult" class="hidden"></div>
+  </div>
+
+  <!-- Step 3: Verify -->
+  <div class="card" id="verifySection" style="display:none">
+    <h2>3 · Verify Credential</h2>
+    <div class="form-row">
+      <button onclick="runVerifyById()" class="secondary">Verify by ID (same instance)</button>
+      <button onclick="runVerifyDocument()">Verify Document (cross-instance)</button>
+    </div>
+    <div class="status-bar" id="verifyStatus"></div>
+    <div id="verifyResult" class="hidden"></div>
+  </div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  let currentUsername = '';
+  let currentVc = null;
+
+  function apiBase() {
+    return $('serverUrl').value.replace(/\/$/, '');
+  }
+
+  function setStatus(id, msg, type) {
+    const el = $(id);
+    el.textContent = msg;
+    el.className = 'status-bar' + (type ? ' ' + type : '');
+  }
+
+  function loading(id) {
+    $(id).innerHTML = '<span class="spinner"></span>Loading…';
+    $(id).className = 'status-bar';
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const res = await fetch(apiBase() + path, {
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      ...opts,
+    });
+    const body = await res.json();
+    if (!body.success) {
+      const e = body.error || {};
+      throw new Error(`[${e.code || res.status}] ${e.message || 'Unknown error'}`);
+    }
+    return body.data;
+  }
+
+  async function poll(jobId) {
+    for (let i = 0; i < 120; i++) {
+      await sleep(3000);
+      const job = await apiFetch(`/api/v1/analyze/status/${jobId}`);
+      if (job.status === 'complete') return job.data;
+      if (job.status === 'failed') throw new Error(job.error || 'Analysis failed');
+    }
+    throw new Error('Timed out waiting for analysis');
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function runAnalyze() {
+    const username = $('usernameInput').value.trim();
+    const token = $('tokenInput').value.trim();
+    if (!username) { setStatus('analyzeStatus', 'Enter a GitHub username.', 'error'); return; }
+
+    $('analyzeBtn').disabled = true;
+    loading('analyzeStatus');
+    $('analyzeResult').classList.add('hidden');
+    $('issueSection').style.display = 'none';
+    $('verifySection').style.display = 'none';
+    currentVc = null;
+
+    try {
+      const payload = { github_username: username };
+      if (token) payload.github_token = token;
+      const { job_id } = await apiFetch('/api/v1/analyze', { method: 'POST', body: JSON.stringify(payload) });
+      setStatus('analyzeStatus', `Job ${job_id} started — polling…`);
+
+      const result = await poll(job_id);
+      currentUsername = username;
+      renderAnalysis(result);
+      setStatus('analyzeStatus', 'Analysis complete.', 'ok');
+      $('issueSection').style.display = '';
+    } catch (e) {
+      setStatus('analyzeStatus', e.message, 'error');
+    } finally {
+      $('analyzeBtn').disabled = false;
+    }
+  }
+
+  function renderAnalysis(r) {
+    const cs = r.contributor_score || {};
+    const ms = r.maintainer_score || {};
+    const gc = r.graph_centrality || {};
+    const skills = (r.top_skills || []).slice(0, 6);
+    const domains = r.domain_scores || {};
+
+    $('analyzeResult').innerHTML = `
+      <div class="score-grid">
+        ${tile(r.overall_score?.toFixed(1) ?? '—', 'Overall Score')}
+        ${tile(r.influence_level ?? '—', 'Influence Level')}
+        ${tile(r.activity_level ?? '—', 'Activity Level')}
+        ${tile(r.primary_domain ?? '—', 'Primary Domain')}
+        ${tile((cs.total ?? 0).toFixed(1), 'Contributor')}
+        ${tile((ms.total ?? 0).toFixed(1), 'Maintainer')}
+        ${tile((gc.combined ?? 0).toFixed(3), 'Graph Score')}
+      </div>
+      ${skills.length ? `<div class="domain-pills" style="margin-top:12px">${skills.map(s => `<span class="pill">${s}</span>`).join('')}</div>` : ''}
+      <details><summary>Full JSON</summary><pre class="json-view">${JSON.stringify(r, null, 2)}</pre></details>
+    `;
+    $('analyzeResult').classList.remove('hidden');
+  }
+
+  function tile(value, label) {
+    return `<div class="score-tile"><div class="value">${value}</div><div class="label">${label}</div></div>`;
+  }
+
+  async function runIssue() {
+    $('issueBtn').disabled = true;
+    loading('issueStatus');
+    $('issueResult').classList.add('hidden');
+    $('verifySection').style.display = 'none';
+
+    try {
+      const vc = await apiFetch('/api/v1/credential/issue', {
+        method: 'POST',
+        body: JSON.stringify({ github_username: currentUsername }),
+      });
+      currentVc = vc;
+      renderVc(vc);
+      setStatus('issueStatus', 'Credential issued (signed, not yet on-chain).', 'ok');
+      $('verifySection').style.display = '';
+    } catch (e) {
+      setStatus('issueStatus', e.message, 'error');
+    } finally {
+      $('issueBtn').disabled = false;
+    }
+  }
+
+  function renderVc(vc) {
+    $('issueResult').innerHTML = `
+      <div class="vc-card">
+        <div class="vc-badge">Verifiable Credential</div>
+        <div class="vc-field"><span>ID</span><code>${vc.credential_id}</code></div>
+        <div class="vc-field"><span>Issuer</span><code>${vc.issuer}</code></div>
+        <div class="vc-field"><span>Issued</span>${vc.issued_at}</div>
+        <div class="vc-field"><span>On-chain tx</span>${vc.blockchain_tx ? `<code>${vc.blockchain_tx}</code>` : '<em style="color:#8b949e">not anchored</em>'}</div>
+        <details><summary>Full document</summary><pre class="json-view">${JSON.stringify(vc.document, null, 2)}</pre></details>
+      </div>
+    `;
+    $('issueResult').classList.remove('hidden');
+  }
+
+  async function runVerifyById() {
+    if (!currentVc) return;
+    loading('verifyStatus');
+    $('verifyResult').classList.add('hidden');
+    try {
+      const r = await apiFetch(`/api/v1/credential/verify/${currentVc.credential_id}`);
+      renderVerify(r, 'By ID');
+      setStatus('verifyStatus', 'Verification complete.', 'ok');
+    } catch (e) {
+      setStatus('verifyStatus', e.message, 'error');
+    }
+  }
+
+  async function runVerifyDocument() {
+    if (!currentVc) return;
+    loading('verifyStatus');
+    $('verifyResult').classList.add('hidden');
+    try {
+      const r = await apiFetch('/api/v1/credential/verify', {
+        method: 'POST',
+        body: JSON.stringify({ document: currentVc.document }),
+      });
+      renderVerify(r, 'Document (cross-instance capable)');
+      setStatus('verifyStatus', 'Verification complete.', 'ok');
+    } catch (e) {
+      setStatus('verifyStatus', e.message, 'error');
+    }
+  }
+
+  function renderVerify(r, method) {
+    const yesNo = (v) => `<span class="v ${v ? 'yes' : 'no'}">${v ? 'YES' : 'NO'}</span>`;
+    $('verifyResult').innerHTML = `
+      <div class="verify-result">
+        <div style="margin-bottom:10px;font-size:0.75rem;color:#8b949e">Method: ${method}</div>
+        <div class="row-kv"><span class="k">is_valid</span>${yesNo(r.is_valid)}</div>
+        <div class="row-kv"><span class="k">is_tampered</span>${yesNo(r.is_tampered)}</div>
+        <div class="row-kv"><span class="k">is_on_chain</span>${yesNo(r.is_on_chain)}</div>
+        <div class="row-kv"><span class="k">issuer</span><span class="v"><code style="font-size:0.75rem">${r.issuer}</code></span></div>
+        <div class="row-kv"><span class="k">issued_at</span><span class="v">${r.issued_at}</span></div>
+        <div class="row-kv"><span class="k">blockchain_tx</span><span class="v">${r.blockchain_tx || '—'}</span></div>
+        <details><summary>credential_subject</summary><pre class="json-view">${JSON.stringify(r.credential_subject, null, 2)}</pre></details>
+      </div>
+    `;
+    $('verifyResult').classList.remove('hidden');
+  }
+</script>
+</body>
+</html>

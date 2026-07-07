@@ -357,6 +357,11 @@ def _run_analyze_job(job_id: str, request: AnalyzeRequest) -> None:
         _job_store[job_id]["error"] = str(e)
 
 
+@app.get("/api/v1/health")
+def health():
+    return {"success": True, "data": {"status": "ok"}}
+
+
 @app.post("/api/v1/analyze")
 def analyze(request: AnalyzeRequest):
     job_id = str(uuid.uuid4())

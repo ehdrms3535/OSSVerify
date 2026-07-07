@@ -1,0 +1,10 @@
+setup.py
+ossverify_client/__init__.py
+ossverify_client/client.py
+ossverify_client/exceptions.py
+ossverify_client/models.py
+ossverify_client.egg-info/PKG-INFO
+ossverify_client.egg-info/SOURCES.txt
+ossverify_client.egg-info/dependency_links.txt
+ossverify_client.egg-info/requires.txt
+ossverify_client.egg-info/top_level.txt

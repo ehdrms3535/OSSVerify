@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pydantic
+requests
+PyYAML
+python-dotenv
+anthropic
+cryptography
+web3>=6.0.0
+py-solc-x>=2.0.0
+httpx
+transformers
+datasets
+scikit-learn
+accelerate
+# torch installed separately with CPU index
