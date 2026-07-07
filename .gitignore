@@ -5,3 +5,4 @@ __pycache__/
 venv/
 ossverify/analyzer/models/
 ossverify/analyzer/training/dataset.csv
+ossverify_data/
