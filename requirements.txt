@@ -10,6 +10,7 @@ anthropic
 cryptography
 web3>=6.0.0
 py-solc-x>=2.0.0
+networkx>=3.0
 
 # torch는 CUDA 버전에 맞는 인덱스에서 설치할 것, 예:
 # pip install torch --index-url https://download.pytorch.org/whl/cu124

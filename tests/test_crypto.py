@@ -38,10 +38,12 @@ def test_decode_did_key_matches_issuer_public_key():
     assert len(decoded) == 32
     assert decoded == issuer._public_key_bytes
 
-def test_decode_did_key_different_instances_differ():
+def test_decode_did_key_same_key_stable_did():
+    # 키가 영속화된 이후 두 인스턴스는 동일한 DID를 반환해야 한다
     did_a = VCIssuer().generate_did()
     did_b = VCIssuer().generate_did()
-    assert _decode_did_key(did_a) != _decode_did_key(did_b)
+    assert did_a == did_b
+    assert _decode_did_key(did_a) == _decode_did_key(did_b)
 
 def test_decode_did_key_invalid_method():
     with pytest.raises(ValueError, match="지원하지 않는"):

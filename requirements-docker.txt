@@ -8,6 +8,7 @@ anthropic
 cryptography
 web3>=6.0.0
 py-solc-x>=2.0.0
+networkx>=3.0
 httpx
 transformers
 datasets

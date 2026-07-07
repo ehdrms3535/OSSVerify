@@ -1,14 +1,18 @@
 import hashlib
 import json
 import os
+import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.serialization import (
+    Encoding, NoEncryption, PrivateFormat, PublicFormat, load_pem_private_key,
+)
 
 from ossverify.profile.profile_builder import ProfessionalProfile
 
@@ -45,6 +49,125 @@ CONTRACT_ABI = [
     },
 ]
 
+# ── 데이터 디렉토리 ──────────────────────────────────────────────────────────
+_DATA_DIR = Path(os.getenv("OSSVERIFY_DATA_DIR", "ossverify_data"))
+_KEY_PATH = _DATA_DIR / "issuer.pem"
+_DB_PATH  = _DATA_DIR / "credentials.db"
+
+
+def _ensure_data_dir() -> None:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ── 키 영속화 ────────────────────────────────────────────────────────────────
+
+def _load_or_create_key() -> Ed25519PrivateKey:
+    _ensure_data_dir()
+    if _KEY_PATH.exists():
+        pem = _KEY_PATH.read_bytes()
+        return load_pem_private_key(pem, password=None)
+    key = Ed25519PrivateKey.generate()
+    _KEY_PATH.write_bytes(
+        key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+    )
+    return key
+
+
+# ── SQLite credential store ──────────────────────────────────────────────────
+
+def _get_db() -> sqlite3.Connection:
+    _ensure_data_dir()
+    conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS credentials (
+            credential_id TEXT PRIMARY KEY,
+            document      TEXT NOT NULL,
+            hash          TEXT NOT NULL,
+            public_key    TEXT NOT NULL,
+            blockchain_tx TEXT
+        )
+    """)
+    conn.commit()
+    return conn
+
+
+_db: Optional[sqlite3.Connection] = None
+
+
+def _credential_db() -> sqlite3.Connection:
+    global _db
+    if _db is None:
+        _db = _get_db()
+    return _db
+
+
+def _store_credential(credential_id: str, document: dict, hash_: str,
+                      public_key_bytes: bytes, blockchain_tx: Optional[str]) -> None:
+    db = _credential_db()
+    db.execute(
+        "INSERT OR REPLACE INTO credentials VALUES (?, ?, ?, ?, ?)",
+        (credential_id, json.dumps(document, ensure_ascii=False),
+         hash_, public_key_bytes.hex(), blockchain_tx),
+    )
+    db.commit()
+
+
+def _load_credential(credential_id: str) -> Optional[Dict[str, Any]]:
+    row = _credential_db().execute(
+        "SELECT document, hash, public_key, blockchain_tx FROM credentials WHERE credential_id=?",
+        (credential_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return {
+        "document": json.loads(row[0]),
+        "hash": row[1],
+        "public_key_bytes": bytes.fromhex(row[2]),
+        "blockchain_tx": row[3],
+    }
+
+
+def _update_blockchain_tx(credential_id: str, blockchain_tx: str) -> None:
+    db = _credential_db()
+    db.execute(
+        "UPDATE credentials SET blockchain_tx=? WHERE credential_id=?",
+        (blockchain_tx, credential_id),
+    )
+    db.commit()
+
+
+def _list_credential_ids():
+    rows = _credential_db().execute("SELECT credential_id FROM credentials").fetchall()
+    return [r[0] for r in rows]
+
+
+# ── 하위 호환을 위한 dict-like 래퍼 (main.py의 _credential_store 참조용) ──────
+class _CredentialStore:
+    def __getitem__(self, key: str) -> Dict[str, Any]:
+        v = _load_credential(key)
+        if v is None:
+            raise KeyError(key)
+        return v
+
+    def __setitem__(self, key: str, value: Dict[str, Any]) -> None:
+        _store_credential(
+            key,
+            value["document"],
+            value["hash"],
+            value["public_key_bytes"],
+            value.get("blockchain_tx"),
+        )
+
+    def __contains__(self, key: object) -> bool:
+        return _load_credential(str(key)) is not None
+
+    def get(self, key: str, default=None):
+        v = _load_credential(key)
+        return v if v is not None else default
+
+
+_credential_store = _CredentialStore()
+
 
 def _b58encode(data: bytes) -> str:
     leading_zeros = len(data) - len(data.lstrip(b"\x00"))
@@ -57,32 +180,28 @@ def _b58encode(data: bytes) -> str:
     return b"".join(reversed(result)).decode("ascii")
 
 
-# 발급된 VC를 메모리에 보관한다. VCVerifier가 이 스토어를 참조해 검증한다.
-# credential_id → {"document": dict, "hash": str, "public_key_bytes": bytes, "blockchain_tx": str}
-_credential_store: Dict[str, Dict[str, Any]] = {}
-
-
 @dataclass
 class VerifiableCredential:
     credential_id: str
     document: Dict[str, Any]
-    blockchain_tx: str
+    blockchain_tx: Optional[str]
     issued_at: datetime
 
 
 class VCIssuer:
     """did:key + Ed25519 서명으로 W3C VC를 발급하고 Polygon Amoy testnet에 해시를 앵커링한다.
 
+    키쌍은 ossverify_data/issuer.pem에 영속화되며, 재시작 후에도 동일한 DID를 유지한다.
+
     환경변수:
       POLYGON_PRIVATE_KEY      — 트랜잭션 서명용 개인키 (0x 포함 가능)
       POLYGON_CONTRACT_ADDRESS — 배포된 OSSVerifyRegistry 주소
       POLYGON_RPC_URL          — Amoy RPC URL (기본값: public endpoint)
-
-    두 변수가 없으면 mock tx hash를 반환해 정상 발급은 유지한다.
+      OSSVERIFY_DATA_DIR       — 키·DB 저장 디렉토리 (기본값: ossverify_data)
     """
 
     def __init__(self) -> None:
-        self._private_key: Ed25519PrivateKey = Ed25519PrivateKey.generate()
+        self._private_key: Ed25519PrivateKey = _load_or_create_key()
         self._public_key_bytes: bytes = self._private_key.public_key().public_bytes(
             Encoding.Raw, PublicFormat.Raw
         )
@@ -144,10 +263,7 @@ class VCIssuer:
         return signed
 
     def store_hash_on_chain(self, credential_hash: str) -> str:
-        """SHA-256 해시를 Polygon Amoy OSSVerifyRegistry에 기록하고 tx hash를 반환한다.
-
-        POLYGON_PRIVATE_KEY 또는 POLYGON_CONTRACT_ADDRESS 가 없으면 mock을 반환한다.
-        """
+        """SHA-256 해시를 Polygon Amoy OSSVerifyRegistry에 기록하고 tx hash를 반환한다."""
         private_key = os.getenv("POLYGON_PRIVATE_KEY", "")
         contract_address = os.getenv("POLYGON_CONTRACT_ADDRESS", "")
         if not private_key or not contract_address:
@@ -182,32 +298,24 @@ class VCIssuer:
             return receipt.transactionHash.hex()
 
         except Exception as exc:
-            # 블록체인 오류 시 mock으로 폴백 — VC 발급 자체는 중단하지 않음
             return "0x" + credential_hash[:64] + f"_err:{type(exc).__name__}"
 
     def issue(self, profile: ProfessionalProfile) -> VerifiableCredential:
-        """VC를 발급한다 (서명 + 해시 + 메모리 저장).
+        """VC를 발급한다 (서명 + 해시 + DB 저장).
 
         온체인 앵커링은 이 메서드에서 수행하지 않는다.
         블록체인 기록이 필요하면 POST /api/v1/credential/anchor 를 별도로 호출한다.
-        이 분리 덕분에 공개 엔드포인트(/credential/issue)가 실제 체인 트랜잭션을 유발하지 않는다.
         """
         issuer_did = self.generate_did()
         document = self.build_credential_document(profile, issuer_did)
         signed = self.sign(document)
 
         credential_id = signed["id"]
-
-        # 서명 직후 해시 계산 — anchor() 호출 시 온체인에 기록되는 값과 일치해야 함
         canonical = json.dumps(signed, sort_keys=True, ensure_ascii=False).encode("utf-8")
         credential_hash = hashlib.sha256(canonical).hexdigest()
 
-        _credential_store[credential_id] = {
-            "document": signed,
-            "hash": credential_hash,
-            "public_key_bytes": self._public_key_bytes,
-            "blockchain_tx": None,  # anchor() 호출 전까지 None
-        }
+        _store_credential(credential_id, signed, credential_hash,
+                          self._public_key_bytes, None)
 
         return VerifiableCredential(
             credential_id=credential_id,

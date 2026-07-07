@@ -294,6 +294,21 @@
     <div id="issueResult" class="hidden"></div>
   </div>
 
+  <!-- Step 2.5: Anchor -->
+  <div class="card" id="anchorSection" style="display:none">
+    <h2>2.5 · Anchor on Blockchain (optional)</h2>
+    <p style="font-size:0.82rem;color:#8b949e;margin-bottom:14px">
+      GitHub 본인 인증 후 VC 해시를 Polygon Amoy testnet에 기록합니다.<br>
+      .env에 POLYGON_PRIVATE_KEY / POLYGON_CONTRACT_ADDRESS가 없으면 mock tx가 반환됩니다.
+    </p>
+    <div class="form-row">
+      <input type="password" id="anchorTokenInput" placeholder="GitHub token (본인 인증용)" />
+      <button id="anchorBtn" onclick="runAnchor()">Anchor VC</button>
+    </div>
+    <div class="status-bar" id="anchorStatus"></div>
+    <div id="anchorResult" class="hidden"></div>
+  </div>
+
   <!-- Step 3: Verify -->
   <div class="card" id="verifySection" style="display:none">
     <h2>3 · Verify Credential</h2>
@@ -424,6 +439,7 @@
       currentVc = vc;
       renderVc(vc);
       setStatus('issueStatus', 'Credential issued (signed, not yet on-chain).', 'ok');
+      $('anchorSection').style.display = '';
       $('verifySection').style.display = '';
     } catch (e) {
       setStatus('issueStatus', e.message, 'error');
@@ -444,6 +460,37 @@
       </div>
     `;
     $('issueResult').classList.remove('hidden');
+  }
+
+  async function runAnchor() {
+    if (!currentVc) return;
+    const token = $('anchorTokenInput').value.trim();
+    if (!token) { setStatus('anchorStatus', 'GitHub 토큰을 입력하세요.', 'error'); return; }
+
+    $('anchorBtn').disabled = true;
+    loading('anchorStatus');
+    $('anchorResult').classList.add('hidden');
+
+    try {
+      const r = await apiFetch('/api/v1/credential/anchor', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ credential_id: currentVc.credential_id }),
+      });
+      $('anchorResult').innerHTML = `
+        <div class="verify-result">
+          <div class="row-kv"><span class="k">is_on_chain</span><span class="v ${r.is_on_chain ? 'yes' : 'no'}">${r.is_on_chain ? 'YES' : 'NO (mock)'}</span></div>
+          <div class="row-kv"><span class="k">blockchain_tx</span><span class="v"><code style="font-size:0.75rem">${r.blockchain_tx}</code></span></div>
+        </div>
+      `;
+      $('anchorResult').classList.remove('hidden');
+      currentVc.blockchain_tx = r.blockchain_tx;
+      setStatus('anchorStatus', r.is_on_chain ? 'Anchored on Polygon Amoy.' : 'Mock tx returned (no contract configured).', 'ok');
+    } catch (e) {
+      setStatus('anchorStatus', e.message, 'error');
+    } finally {
+      $('anchorBtn').disabled = false;
+    }
   }
 
   async function runVerifyById() {

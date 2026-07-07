@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 import requests as _http
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -27,6 +28,13 @@ from ossverify.profile.profile_builder import ProfessionalProfile, ProfileBuilde
 load_dotenv()
 
 app = FastAPI(title="OSSVerify API", version="1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 try:
     _domain_analyzer: Optional[DomainAnalyzer] = DomainAnalyzer()
@@ -214,6 +222,10 @@ def _profile_to_dict(profile: ProfessionalProfile) -> dict:
         "activity_level": profile.activity_level,
         "overall_score": round(profile.overall_score, 2),
         "domain_scores": profile.domain_scores,
+        "contributor_score": profile.contributor_score or {},
+        "maintainer_score": profile.maintainer_score or {},
+        "graph_centrality": profile.graph_centrality or {},
+        "activity_ratio": profile.activity_ratio or {},
         "explanation": {
             key: {"summary": exp.summary, "reasons": exp.reasons}
             for key, exp in profile.explanations.items()
@@ -311,6 +323,15 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
     if exp_output is not None:
         explanations["primary"] = exp_output
 
+    contributor_score_dict = {"total": round(contributor_score.calculate(), 2), **asdict(contributor_score)}
+    maintainer_score_dict = {"total": round(maintainer_score.calculate(), 2), **asdict(maintainer_score)}
+    graph_centrality_dict = {
+        "pagerank_score": graph_centrality.pagerank_score,
+        "gnn_score": graph_centrality.gnn_score,
+        "combined": round(combined_centrality, 2),
+    }
+    activity_ratio_dict = asdict(data.activity_ratio)
+
     profile = ProfileBuilder().build(
         github_username=data.username,
         final_score=final_score,
@@ -318,26 +339,26 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         secondary_domain=secondary_domain or "",
         top_skills=top_skills,
         explanations=explanations,
+        contributor_score=contributor_score_dict,
+        maintainer_score=maintainer_score_dict,
+        graph_centrality=graph_centrality_dict,
+        activity_ratio=activity_ratio_dict,
     )
     _profile_store[data.username.lower()] = profile
 
     return {
         "github_username": data.username,
         "overall_score": round(final_score.overall_score, 2),
-        "activity_ratio": asdict(data.activity_ratio),
-        "contributor_score": {"total": round(contributor_score.calculate(), 2), **asdict(contributor_score)},
-        "maintainer_score": {"total": round(maintainer_score.calculate(), 2), **asdict(maintainer_score)},
+        "activity_ratio": activity_ratio_dict,
+        "contributor_score": contributor_score_dict,
+        "maintainer_score": maintainer_score_dict,
         "domain_scores": final_score.domain_scores,
         "primary_domain": primary_domain,
         "secondary_domain": secondary_domain,
         "top_skills": top_skills,
         "influence_level": final_score.influence_level,
         "activity_level": final_score.activity_level,
-        "graph_centrality": {
-            "pagerank_score": graph_centrality.pagerank_score,
-            "gnn_score": graph_centrality.gnn_score,
-            "combined": round(combined_centrality, 2),
-        },
+        "graph_centrality": graph_centrality_dict,
         "explanation": {
             "summary": exp_output.summary if exp_output else None,
             "reasons": exp_output.reasons if exp_output else [],
@@ -489,7 +510,7 @@ def anchor_credential(
     VC 주체 본인이 이 엔드포인트를 별도로 호출해야 한다.
     VC credentialSubject.githubUsername과 인증 사용자가 일치해야 한다.
     """
-    from ossverify.credential.vc_issuer import _credential_store as _store
+    from ossverify.credential.vc_issuer import _credential_store as _store, _update_blockchain_tx
 
     entry = _store.get(request.credential_id)
     if entry is None:
@@ -509,13 +530,12 @@ def anchor_credential(
     is_on_chain = "_err:" not in blockchain_tx
 
     if is_on_chain:
-        # 앵커링 성공 시에만 proof에 blockchainAnchor 추가
         entry["document"]["proof"]["blockchainAnchor"] = {
             "network": "polygon:amoy",
             "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
             "transactionHash": blockchain_tx,
         }
-        entry["blockchain_tx"] = blockchain_tx
+        _update_blockchain_tx(request.credential_id, blockchain_tx)
 
     return success_response({
         "credential_id": request.credential_id,

@@ -123,16 +123,22 @@ def test_tamper_issuer_field_detected():
 # ── 키 불일치 감지 ────────────────────────────────────────────────────────
 
 def test_key_mismatch_detected():
-    """C 서명 + A의 did:key를 조합한 스푸핑 시도를 거부해야 한다."""
-    issuer_a = VCIssuer()
-    issuer_c = VCIssuer()
+    """다른 키로 서명한 후 원본 issuer DID를 사용하면 검증이 실패해야 한다."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+    import json, hashlib
 
-    vc_a = issuer_a.issue(PROFILE)
-    vc_c = issuer_c.issue(PROFILE)
+    issuer = VCIssuer()
+    vc = issuer.issue(PROFILE)
 
-    spoofed = copy.deepcopy(vc_c.document)
-    spoofed["issuer"] = vc_a.document["issuer"]
-    spoofed["proof"]["verificationMethod"] = vc_a.document["issuer"] + "#key-1"
+    # 완전히 다른 임시 키로 proof를 교체
+    evil_key = Ed25519PrivateKey.generate()
+    spoofed = copy.deepcopy(vc.document)
+    doc_without_proof = {k: v for k, v in spoofed.items() if k != "proof"}
+    canonical = json.dumps(doc_without_proof, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    evil_sig = evil_key.sign(canonical).hex()
+
+    spoofed["proof"]["proofValue"] = evil_sig  # 다른 키의 서명 + 원래 issuer DID 유지
 
     result = VCVerifier().verify(document=spoofed)
     assert not result.is_valid

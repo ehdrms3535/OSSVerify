@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from ossverify.analyzer.explanation_generator import ExplanationOutput
 from ossverify.analyzer.score_calculator import FinalScore
@@ -17,7 +17,11 @@ class ProfessionalProfile:
     overall_score: float
     domain_scores: Dict[str, float] = field(default_factory=dict)
     explanations: Dict[str, ExplanationOutput] = field(default_factory=dict)
-    analyzed_at: datetime = field(default_factory=datetime.utcnow)
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    contributor_score: Optional[Dict[str, Any]] = None
+    maintainer_score: Optional[Dict[str, Any]] = None
+    graph_centrality: Optional[Dict[str, Any]] = None
+    activity_ratio: Optional[Dict[str, Any]] = None
 
 
 class ProfileBuilder:
@@ -29,6 +33,10 @@ class ProfileBuilder:
         secondary_domain: str,
         top_skills: List[str],
         explanations: Dict[str, ExplanationOutput],
+        contributor_score: Optional[Dict[str, Any]] = None,
+        maintainer_score: Optional[Dict[str, Any]] = None,
+        graph_centrality: Optional[Dict[str, Any]] = None,
+        activity_ratio: Optional[Dict[str, Any]] = None,
     ) -> ProfessionalProfile:
         return ProfessionalProfile(
             github_username=github_username,
@@ -40,4 +48,8 @@ class ProfileBuilder:
             overall_score=final_score.overall_score,
             domain_scores=final_score.domain_scores,
             explanations=explanations,
+            contributor_score=contributor_score,
+            maintainer_score=maintainer_score,
+            graph_centrality=graph_centrality,
+            activity_ratio=activity_ratio,
         )

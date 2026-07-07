@@ -10,3 +10,6 @@ docx/
 .git
 .gitignore
 test_results.txt
+ossverify/analyzer/models/domain_bert/checkpoints/
+ossverify/analyzer/training/
+ossverify_data/
