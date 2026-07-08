@@ -127,11 +127,17 @@ def _load_credential(credential_id: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def _update_blockchain_tx(credential_id: str, blockchain_tx: str) -> None:
+def _update_blockchain_tx(credential_id: str, blockchain_tx: str, document: Optional[dict] = None) -> None:
     db = _credential_db()
-    db.execute(
-        "UPDATE credentials SET blockchain_tx=? WHERE credential_id=?",
-        (blockchain_tx, credential_id),
+    if document is not None:
+        db.execute(
+            "UPDATE credentials SET blockchain_tx=?, document=? WHERE credential_id=?",
+            (blockchain_tx, json.dumps(document, ensure_ascii=False), credential_id),
+        )
+    else:
+        db.execute(
+            "UPDATE credentials SET blockchain_tx=? WHERE credential_id=?",
+            (blockchain_tx, credential_id),
     )
     db.commit()
 

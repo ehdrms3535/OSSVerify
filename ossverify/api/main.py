@@ -548,7 +548,7 @@ def anchor_credential(
             "contractAddress": os.getenv("POLYGON_CONTRACT_ADDRESS", ""),
             "transactionHash": blockchain_tx,
         }
-        _update_blockchain_tx(request.credential_id, blockchain_tx)
+        _update_blockchain_tx(request.credential_id, blockchain_tx, entry["document"])
 
     return success_response({
         "credential_id": request.credential_id,

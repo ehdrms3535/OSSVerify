@@ -344,9 +344,10 @@
   }
 
   async function apiFetch(path, opts = {}) {
+    const { headers: extraHeaders = {}, ...restOpts } = opts;
     const res = await fetch(apiBase() + path, {
-      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-      ...opts,
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      ...restOpts,
     });
     const body = await res.json();
     if (!body.success) {
