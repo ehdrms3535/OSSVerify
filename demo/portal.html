@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSSVerify Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-strong: #f0f6fc;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --green-bg: #1a4731;
+      --red-bg: #3d1a1a;
+      --tag-bg: #21262d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 56px;
+    }
+
+    .logo { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+
+    .tabs { display: flex; gap: 0; height: 100%; }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text-strong); border-bottom-color: var(--accent); }
+
+    .server-input {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .server-input input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      width: 200px;
+      outline: none;
+    }
+
+    .server-input input:focus { border-color: var(--accent); }
+
+    /* ── Layout ── */
+    .page { display: none; max-width: 780px; margin: 48px auto; padding: 0 24px; }
+    .page.active { display: block; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-strong);
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* ── Form ── */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: var(--accent); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #2ea043; }
+    .btn:disabled { background: var(--tag-bg); color: #484f58; cursor: not-allowed; }
+    .btn.outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn.outline:hover { background: var(--tag-bg); }
+    .btn.blue { background: #1158a4; }
+    .btn.blue:hover { background: #1a6fd4; }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+    /* ── Status ── */
+    .status {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status.ok { color: var(--green); }
+    .status.err { color: var(--red); }
+
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── VC Card ── */
+    .vc-card {
+      background: var(--bg);
+      border: 1px solid #388bfd44;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .vc-badge {
+      display: inline-block;
+      background: #388bfd18;
+      border: 1px solid #388bfd44;
+      color: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 2px 9px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+    }
+
+    .vc-row { display: flex; gap: 10px; margin-bottom: 8px; font-size: 0.85rem; align-items: baseline; }
+    .vc-row .k { color: var(--text-muted); min-width: 110px; flex-shrink: 0; }
+    .vc-row .v { color: var(--text); word-break: break-all; }
+    .vc-row code { font-family: monospace; font-size: 0.78rem; background: var(--tag-bg); padding: 1px 5px; border-radius: 3px; }
+
+    /* ── Score grid ── */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .score-tile {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .score-tile .val { font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
+    .score-tile .lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── Verify result ── */
+    .verify-panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .verdict {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .verdict-icon { font-size: 2rem; }
+
+    .verdict-text .main { font-size: 1.1rem; font-weight: 700; }
+    .verdict-text .sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+    .verdict-text.valid .main { color: var(--green); }
+    .verdict-text.invalid .main { color: var(--red); }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .check-icon { font-size: 1rem; width: 20px; text-align: center; }
+    .check-label { flex: 1; color: var(--text-muted); }
+    .check-value { font-weight: 600; }
+    .check-value.yes { color: var(--green); }
+    .check-value.no { color: var(--red); }
+    .check-value.warn { color: #e3b341; }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .subject-item .sk { font-size: 0.72rem; color: var(--text-muted); }
+    .subject-item .sv { font-size: 0.9rem; color: var(--text-strong); font-weight: 500; margin-top: 2px; }
+
+    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .pill {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1px 9px;
+      font-size: 0.75rem;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 36px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #388bfd08; }
+    .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-zone .label { font-size: 0.9rem; color: var(--text-muted); }
+    .upload-zone .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+    input[type="file"] { display: none; }
+
+    details { margin-top: 14px; }
+    summary { cursor: pointer; font-size: 0.78rem; color: var(--text-muted); user-select: none; }
+    pre.json {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.73rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    .step-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">OSSVerify</div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dev')">개발자 포털</div>
+    <div class="tab" onclick="switchTab('verify')">검증 포털</div>
+  </div>
+  <div class="server-input">
+    <span>API</span>
+    <input type="text" id="serverUrl" value="http://localhost:8000" />
+  </div>
+</header>
+
+<!-- ── Developer Page ── -->
+<div class="page active" id="page-dev">
+
+  <!-- Step 1: Analyze -->
+  <div class="card">
+    <div class="step-label">Step 1 · GitHub 활동 분석</div>
+    <div class="card-title">오픈소스 기여 역량 분석</div>
+    <div class="card-desc">GitHub 사용자명을 입력하면 커밋, PR, 코드 리뷰 등 공개 활동을 분석해 역량 점수를 산출합니다.</div>
+    <div class="field">
+      <label>GitHub 사용자명</label>
+      <input type="text" id="devUsername" placeholder="예: torvalds" />
+    </div>
+    <div class="field">
+      <label>GitHub Token <span style="font-size:0.75rem;color:var(--text-muted)">(선택 — rate limit 완화)</span></label>
+      <input type="password" id="devToken" placeholder="ghp_..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="runAnalyze()">분석 시작</button>
+    </div>
+    <div class="status" id="analyzeStatus"></div>
+    <div id="analyzeResult" class="hidden"></div>
+  </div>
+
+  <!-- Step 2: Issue -->
+  <div class="card hidden" id="issueCard">
+    <div class="step-label">Step 2 · 검증 가능한 자격증명 발급</div>
+    <div class="card-title">Verifiable Credential 발급</div>
+    <div class="card-desc">분석 결과를 Ed25519 서명으로 봉인한 W3C VC를 발급합니다. 발급된 VC는 서버에 저장되며 누구든 서명을 검증할 수 있습니다.</div>
+    <div class="btn-row">
+      <button class="btn" onclick="runIssue()">VC 발급</button>
+    </div>
+    <div class="status" id="issueStatus"></div>
+    <div id="issueResult" class="hidden"></div>
+  </div>
+
+  <!-- Step 3: Anchor -->
+  <div class="card hidden" id="anchorCard">
+    <div class="step-label">Step 3 · 블록체인 앵커링 (선택)</div>
+    <div class="card-title">Polygon Amoy Testnet에 해시 기록</div>
+    <div class="card-desc">VC의 SHA-256 해시를 Polygon Amoy 스마트 컨트랙트에 기록합니다. 이후 서버가 없어도 온체인에서 발급 사실을 독립적으로 증명할 수 있습니다.</div>
+    <div class="field">
+      <label>GitHub Token <span style="font-size:0.75rem;color:var(--text-muted)">(본인 인증용 — credentialSubject와 동일 계정)</span></label>
+      <input type="password" id="anchorToken" placeholder="ghp_..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn blue" onclick="runAnchor()">온체인 앵커링</button>
+    </div>
+    <div class="status" id="anchorStatus"></div>
+    <div id="anchorResult" class="hidden"></div>
+  </div>
+
+  <!-- Step 4: Download -->
+  <div class="card hidden" id="downloadCard">
+    <div class="step-label">Step 4 · VC 파일 저장</div>
+    <div class="card-title">검증서 다운로드</div>
+    <div class="card-desc">발급된 VC 문서를 JSON 파일로 저장합니다. 채용담당자나 제3자에게 전달하면 검증 포털에서 즉시 확인할 수 있습니다.</div>
+    <div class="btn-row">
+      <button class="btn outline" onclick="downloadVC()">VC 파일 다운로드 (.json)</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Verifier Page ── -->
+<div class="page" id="page-verify">
+
+  <div class="card">
+    <div class="card-title">오픈소스 기여 검증서 확인</div>
+    <div class="card-desc">개발자로부터 전달받은 VC 파일을 업로드하거나 credential ID를 입력하면 서명·무결성·온체인 기록을 즉시 검증합니다.</div>
+
+    <!-- Upload -->
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <div class="icon">📄</div>
+      <div class="label">VC 파일을 여기에 드래그하거나 클릭해서 선택</div>
+      <div class="hint">.json 파일</div>
+    </div>
+    <input type="file" id="fileInput" accept=".json" onchange="handleFile(event)" />
+
+    <div class="divider"></div>
+
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">또는 Credential ID로 조회 (같은 서버)</div>
+    <div class="field">
+      <input type="text" id="credentialId" placeholder="urn:uuid:..." />
+    </div>
+    <div class="btn-row">
+      <button class="btn outline" onclick="runVerifyById()">ID로 검증</button>
+    </div>
+
+    <div class="status" id="verifyStatus"></div>
+  </div>
+
+  <div id="verifyResult" class="hidden"></div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  let currentVc = null;
+
+  function apiBase() { return $('serverUrl').value.replace(/\/$/, ''); }
+
+  function setStatus(id, msg, type) {
+    const el = $(id);
+    el.innerHTML = msg;
+    el.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  function loading(id, msg = '처리 중...') {
+    $(id).innerHTML = `<span class="spinner"></span>${msg}`;
+    $(id).className = 'status';
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function apiFetch(path, opts = {}) {
+    const { headers: extraHeaders = {}, ...rest } = opts;
+    const res = await fetch(apiBase() + path, {
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      ...rest,
+    });
+    const body = await res.json();
+    if (!body.success) {
+      const e = body.error || {};
+      throw new Error(`[${e.code || res.status}] ${e.message || '오류'}`);
+    }
+    return body.data;
+  }
+
+  async function poll(jobId) {
+    for (let i = 0; i < 120; i++) {
+      await sleep(3000);
+      const job = await apiFetch(`/api/v1/analyze/status/${jobId}`);
+      if (job.status === 'complete') return job.data;
+      if (job.status === 'failed') throw new Error(job.error || '분석 실패');
+      setStatus('analyzeStatus', `<span class="spinner"></span>분석 중... (${(i+1)*3}초 경과)`);
+    }
+    throw new Error('분석 타임아웃');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'dev')));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    $(`page-${tab}`).classList.add('active');
+  }
+
+  // ── Analyze ──────────────────────────────────────────────────────────────
+  async function runAnalyze() {
+    const username = $('devUsername').value.trim();
+    const token = $('devToken').value.trim();
+    if (!username) { setStatus('analyzeStatus', 'GitHub 사용자명을 입력하세요.', 'err'); return; }
+
+    loading('analyzeStatus', '분석 작업 시작 중...');
+    $('analyzeResult').classList.add('hidden');
+    $('issueCard').classList.add('hidden');
+    $('anchorCard').classList.add('hidden');
+    $('downloadCard').classList.add('hidden');
+    currentVc = null;
+
+    try {
+      const payload = { github_username: username };
+      if (token) payload.github_token = token;
+      const { job_id } = await apiFetch('/api/v1/analyze', { method: 'POST', body: JSON.stringify(payload) });
+      const result = await poll(job_id);
+      renderAnalysis(result);
+      setStatus('analyzeStatus', '✓ 분석 완료', 'ok');
+      $('issueCard').classList.remove('hidden');
+    } catch (e) {
+      setStatus('analyzeStatus', e.message, 'err');
+    }
+  }
+
+  function renderAnalysis(r) {
+    const cs = r.contributor_score || {};
+    const ms = r.maintainer_score || {};
+    const gc = r.graph_centrality || {};
+    const skills = (r.top_skills || []).slice(0, 5);
+
+    $('analyzeResult').innerHTML = `
+      <div class="score-grid">
+        ${tile(r.overall_score?.toFixed(1) ?? '—', '종합 점수')}
+        ${tile(r.influence_level ?? '—', '영향력 레벨')}
+        ${tile(r.activity_level ?? '—', '활동 수준')}
+        ${tile(r.primary_domain ?? '—', '주요 도메인')}
+        ${tile((cs.total ?? 0).toFixed(1), '기여자 점수')}
+        ${tile((ms.total ?? 0).toFixed(1), '메인테이너 점수')}
+      </div>
+      ${skills.length ? `<div class="pill-row">${skills.map(s => `<span class="pill">${esc(s)}</span>`).join('')}</div>` : ''}
+    `;
+    $('analyzeResult').classList.remove('hidden');
+  }
+
+  function tile(val, lbl) {
+    return `<div class="score-tile"><div class="val">${esc(String(val))}</div><div class="lbl">${esc(lbl)}</div></div>`;
+  }
+
+  // ── Issue ────────────────────────────────────────────────────────────────
+  async function runIssue() {
+    const username = $('devUsername').value.trim();
+    loading('issueStatus', 'VC 발급 중...');
+    $('issueResult').classList.add('hidden');
+
+    try {
+      const vc = await apiFetch('/api/v1/credential/issue', {
+        method: 'POST',
+        body: JSON.stringify({ github_username: username }),
+      });
+      currentVc = vc;
+      renderVC(vc);
+      setStatus('issueStatus', '✓ VC 발급 완료', 'ok');
+      $('anchorCard').classList.remove('hidden');
+      $('downloadCard').classList.remove('hidden');
+    } catch (e) {
+      setStatus('issueStatus', e.message, 'err');
+    }
+  }
+
+  function renderVC(vc) {
+    $('issueResult').innerHTML = `
+      <div class="vc-card">
+        <div class="vc-badge">Verifiable Credential</div>
+        <div class="vc-row"><span class="k">Credential ID</span><span class="v"><code>${esc(vc.credential_id)}</code></span></div>
+        <div class="vc-row"><span class="k">Issuer DID</span><span class="v"><code>${esc(vc.issuer)}</code></span></div>
+        <div class="vc-row"><span class="k">발급일시</span><span class="v">${esc(vc.issued_at)}</span></div>
+        <div class="vc-row"><span class="k">온체인 TX</span><span class="v">${vc.blockchain_tx ? `<code>${esc(vc.blockchain_tx)}</code>` : '<span style="color:var(--text-muted)">미앵커링</span>'}</span></div>
+      </div>
+    `;
+    $('issueResult').classList.remove('hidden');
+  }
+
+  // ── Anchor ───────────────────────────────────────────────────────────────
+  async function runAnchor() {
+    if (!currentVc) return;
+    const token = $('anchorToken').value.trim();
+    if (!token) { setStatus('anchorStatus', 'GitHub 토큰을 입력하세요.', 'err'); return; }
+
+    loading('anchorStatus', 'Polygon Amoy에 기록 중...');
+    $('anchorResult').classList.add('hidden');
+
+    try {
+      const r = await apiFetch('/api/v1/credential/anchor', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ credential_id: currentVc.credential_id }),
+      });
+      currentVc.blockchain_tx = r.blockchain_tx;
+      if (r.document) currentVc.document = r.document;
+      $('anchorResult').innerHTML = `
+        <div style="margin-top:14px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;">
+          <div style="color:${r.is_on_chain ? 'var(--green)' : 'var(--text-muted)'}; font-weight:600; margin-bottom:6px">
+            ${r.is_on_chain ? '✓ 온체인 기록 완료' : '⚠ Mock TX (컨트랙트 미설정)'}
+          </div>
+          <div style="color:var(--text-muted);word-break:break-all">TX: <code style="font-family:monospace;font-size:0.75rem">${esc(r.blockchain_tx)}</code></div>
+        </div>
+      `;
+      $('anchorResult').classList.remove('hidden');
+      setStatus('anchorStatus', r.is_on_chain ? '✓ 앵커링 완료' : '완료 (mock)', r.is_on_chain ? 'ok' : '');
+    } catch (e) {
+      setStatus('anchorStatus', e.message, 'err');
+    }
+  }
+
+  // ── Download ─────────────────────────────────────────────────────────────
+  function downloadVC() {
+    if (!currentVc) return;
+    const blob = new Blob([JSON.stringify(currentVc.document, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ossverify-vc-${$('devUsername').value.trim()}.json`;
+    a.click();
+  }
+
+  // ── Verify ───────────────────────────────────────────────────────────────
+  function handleDrop(e) {
+    e.preventDefault();
+    $('uploadZone').classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  }
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (file) readFile(file);
+  }
+
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const doc = JSON.parse(e.target.result);
+        loading('verifyStatus', '서명 및 온체인 기록 검증 중...');
+        $('verifyResult').classList.add('hidden');
+        const r = await apiFetch('/api/v1/credential/verify', {
+          method: 'POST',
+          body: JSON.stringify({ document: doc }),
+        });
+        renderVerify(r, 'Document (크로스 인스턴스 지원)');
+        setStatus('verifyStatus', '✓ 검증 완료', 'ok');
+      } catch (err) {
+        setStatus('verifyStatus', err.message, 'err');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function runVerifyById() {
+    const id = $('credentialId').value.trim();
+    if (!id) { setStatus('verifyStatus', 'Credential ID를 입력하세요.', 'err'); return; }
+    loading('verifyStatus', '검증 중...');
+    $('verifyResult').classList.add('hidden');
+    try {
+      const r = await apiFetch(`/api/v1/credential/verify/${encodeURIComponent(id)}`);
+      renderVerify(r, 'ID 조회 (동일 인스턴스)');
+      setStatus('verifyStatus', '✓ 검증 완료', 'ok');
+    } catch (e) {
+      setStatus('verifyStatus', e.message, 'err');
+    }
+  }
+
+  function renderVerify(r, method) {
+    const overall = r.is_valid && !r.is_tampered;
+    const subj = r.credential_subject || {};
+    const skills = (subj.topSkills || []).slice(0, 5);
+    const domainScores = subj.domainScores || {};
+
+    $('verifyResult').innerHTML = `
+      <div class="card">
+        <div class="verdict">
+          <div class="verdict-icon">${overall ? '✅' : '❌'}</div>
+          <div class="verdict-text ${overall ? 'valid' : 'invalid'}">
+            <div class="main">${overall ? '검증 완료 — 유효한 자격증명' : '검증 실패 — 유효하지 않은 자격증명'}</div>
+            <div class="sub">${esc(method)}</div>
+          </div>
+        </div>
+
+        <div class="check-row">
+          <div class="check-icon">${r.is_valid ? '✓' : '✗'}</div>
+          <div class="check-label">서명 검증 (Ed25519)</div>
+          <div class="check-value ${r.is_valid ? 'yes' : 'no'}">${r.is_valid ? '유효' : '실패'}</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon">${!r.is_tampered ? '✓' : '✗'}</div>
+          <div class="check-label">무결성 (위변조 없음)</div>
+          <div class="check-value ${!r.is_tampered ? 'yes' : 'no'}">${!r.is_tampered ? '정상' : '변조 감지'}</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon">${r.is_on_chain ? '✓' : '○'}</div>
+          <div class="check-label">온체인 기록 (Polygon Amoy)</div>
+          <div class="check-value ${r.is_on_chain ? 'yes' : 'warn'}">${r.is_on_chain ? '확인됨' : '미기록'}</div>
+        </div>
+
+        <div class="subject-grid">
+          <div class="subject-item">
+            <div class="sk">GitHub 사용자</div>
+            <div class="sv">${esc(subj.githubUsername || '—')}</div>
+          </div>
+          <div class="subject-item">
+            <div class="sk">종합 점수</div>
+            <div class="sv">${subj.overallScore ?? '—'}</div>
+          </div>
+          <div class="subject-item">
+            <div class="sk">주요 도메인</div>
+            <div class="sv">${esc(subj.primaryDomain || '—')}</div>
+          </div>
+          <div class="subject-item">
+            <div class="sk">영향력 레벨</div>
+            <div class="sv">${esc(subj.influenceLevel || '—')}</div>
+          </div>
+          <div class="subject-item" style="grid-column:1/-1">
+            <div class="sk">주요 기술</div>
+            <div class="pill-row" style="margin-top:6px">${skills.map(s => `<span class="pill">${esc(s)}</span>`).join('') || '—'}</div>
+          </div>
+          ${r.blockchain_tx ? `
+          <div class="subject-item" style="grid-column:1/-1">
+            <div class="sk">블록체인 TX</div>
+            <div class="sv" style="font-size:0.78rem;font-family:monospace;word-break:break-all">${esc(r.blockchain_tx)}</div>
+          </div>` : ''}
+        </div>
+
+        <details style="margin-top:14px">
+          <summary>전체 VC 문서 보기</summary>
+          <pre class="json">${esc(JSON.stringify({ issuer: r.issuer, issued_at: r.issued_at, credential_subject: r.credential_subject }, null, 2))}</pre>
+        </details>
+      </div>
+    `;
+    $('verifyResult').classList.remove('hidden');
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

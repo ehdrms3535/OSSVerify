@@ -554,4 +554,5 @@ def anchor_credential(
         "credential_id": request.credential_id,
         "blockchain_tx": blockchain_tx,
         "is_on_chain": is_on_chain,
+        "document": entry["document"],
     })
