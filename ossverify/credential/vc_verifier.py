@@ -86,7 +86,7 @@ class VCVerifier:
             return timestamp > 0
 
         except Exception:
-            return True  # 네트워크 오류 시 온체인 검증 실패로 처리하지 않음
+            return False  # 네트워크 오류 시 확인 불가 → False (보수적 처리)
 
     def _verify_core(
         self,

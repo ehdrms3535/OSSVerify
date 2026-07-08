@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -59,6 +60,15 @@ class JobStatus(str, Enum):
 
 _job_store: Dict[str, Dict[str, Any]] = {}
 _analyze_pool = ThreadPoolExecutor(max_workers=4)
+_JOB_TTL = 3600  # 완료된 job 1시간 후 자동 삭제
+
+
+def _evict_old_jobs() -> None:
+    cutoff = time.monotonic() - _JOB_TTL
+    stale = [jid for jid, j in _job_store.items()
+             if j["status"] != JobStatus.PENDING and j.get("_ts", 0) < cutoff]
+    for jid in stale:
+        del _job_store[jid]
 
 
 class AnalyzeRequest(BaseModel):
@@ -372,10 +382,12 @@ def _run_analyze_job(job_id: str, request: AnalyzeRequest) -> None:
         result = _do_analyze(request)
         _job_store[job_id]["status"] = JobStatus.COMPLETE
         _job_store[job_id]["data"] = result
+        _job_store[job_id]["_ts"] = time.monotonic()
     except Exception as e:
         logging.error("analyze job %s failed: %s\n%s", job_id, e, traceback.format_exc())
         _job_store[job_id]["status"] = JobStatus.FAILED
         _job_store[job_id]["error"] = str(e)
+        _job_store[job_id]["_ts"] = time.monotonic()
 
 
 @app.get("/api/v1/health")
@@ -393,6 +405,7 @@ def analyze(request: AnalyzeRequest):
 
 @app.get("/api/v1/analyze/status/{job_id}")
 def get_analyze_status(job_id: str):
+    _evict_old_jobs()
     job = _job_store.get(job_id)
     if job is None:
         return error_response("NOT_FOUND", f"Job '{job_id}'을 찾을 수 없습니다.", status_code=404)
