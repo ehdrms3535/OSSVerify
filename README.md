@@ -177,27 +177,53 @@ Backend 91점
 | `GET` | `/api/v1/credential/verify/{id}` | VC 검증 |
 | `POST` | `/api/v1/credential/verify` | 외부 VC 문서 검증 |
 
-**SDK 예시:**
+**Python SDK:**
+```bash
+pip install ./sdk/python
+```
 ```python
-import requests
+from ossverify_client import OSSVerifyClient
 
-BASE = "http://localhost:8000"
+client = OSSVerifyClient("http://localhost:8000")
 
-# 분석 시작
-job = requests.post(f"{BASE}/api/v1/analyze",
-    json={"github_username": "torvalds", "github_token": "ghp_..."}).json()
-
-# 결과 조회
-result = requests.get(f"{BASE}/api/v1/analyze/status/{job['data']['job_id']}").json()
+# 분석 (완료까지 자동 폴링)
+result = client.analyze("torvalds", github_token="ghp_...")
+print(result.primary_domain, result.overall_score)
 
 # VC 발급
-vc = requests.post(f"{BASE}/api/v1/credential/issue",
-    json={"github_username": "torvalds"}).json()
+vc = client.issue_credential("torvalds")
+print(vc.credential_id)
 
-# VC 검증 (다른 시스템에서)
-verify = requests.post(f"{BASE}/api/v1/credential/verify",
-    json={"document": vc["data"]["document"]}).json()
-print(verify["data"]["is_valid"])  # True
+# 블록체인 앵커링 (본인 인증 필요)
+client.anchor_credential(vc.credential_id, github_token="ghp_...")
+
+# VC 검증 (다른 시스템에서도 가능)
+verify = client.verify_document(vc.document)
+print(verify.is_valid, verify.is_on_chain)
+```
+
+**JavaScript SDK:**
+```html
+<script src="./sdk/js/ossverify.js"></script>
+<script>
+  const client = new OSSVerifyClient('http://localhost:8000');
+
+  // 분석 (완료까지 자동 폴링)
+  const result = await client.analyze('torvalds', { githubToken: 'ghp_...' });
+  console.log(result.primary_domain, result.overall_score);
+
+  // VC 발급 및 검증
+  const vc = await client.issueCredential('torvalds');
+  const verify = await client.verifyDocument(vc.document);
+  console.log(verify.is_valid, verify.is_on_chain);
+</script>
+```
+
+```javascript
+// Node.js
+const OSSVerifyClient = require('./sdk/js/ossverify.js');
+const client = new OSSVerifyClient('http://localhost:8000');
+const result = await client.analyze('torvalds');
 ```
 
 ---

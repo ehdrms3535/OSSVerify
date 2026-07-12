@@ -351,6 +351,7 @@
   <div id="verifyResult" class="hidden"></div>
 </div>
 
+<script src="../sdk/js/ossverify.js"></script>
 <script>
   const $ = id => document.getElementById(id);
   let currentVc = null;
@@ -369,23 +370,9 @@
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
   function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  async function apiFetch(path, opts = {}) {
-    const { headers: h = {}, ...rest } = opts;
-    const res = await fetch(apiBase() + path, { headers: { 'Content-Type': 'application/json', ...h }, ...rest });
-    const body = await res.json();
-    if (!body.success) { const e = body.error||{}; throw new Error(`[${e.code||res.status}] ${e.message||'오류'}`); }
-    return body.data;
-  }
-
-  async function poll(jobId) {
-    for (let i = 0; i < 120; i++) {
-      await sleep(3000);
-      const job = await apiFetch(`/api/v1/analyze/status/${jobId}`);
-      if (job.status === 'complete') return job.data;
-      if (job.status === 'failed') throw new Error(job.error || '분석 실패');
-      setStatus('analyzeStatus', `<span class="spin"></span>분석 중... ${(i+1)*3}초 경과`);
-    }
-    throw new Error('분석 타임아웃');
+  // OSSVerify JS SDK 클라이언트 — serverUrl 변경 시 getClient() 재호출
+  function getClient() {
+    return new OSSVerifyClient(apiBase(), { pollInterval: 3000, timeout: 360_000 });
   }
 
   function switchTab(tab) {
@@ -404,10 +391,12 @@
     ['issueCard','anchorCard','downloadCard'].forEach(id => $(id).classList.add('hidden'));
     currentVc = null;
     try {
-      const payload = { github_username: username };
-      if (token) payload.github_token = token;
-      const { job_id } = await apiFetch('/api/v1/analyze', { method:'POST', body: JSON.stringify(payload) });
-      const result = await poll(job_id);
+      const client = getClient();
+      let elapsed = 0;
+      const result = await client.analyze(username, {
+        githubToken: token || undefined,
+        onProgress: () => { elapsed += 3; setStatus('analyzeStatus', `<span class="spin"></span>분석 중... ${elapsed}초 경과`); },
+      });
       renderAnalysis(result);
       setStatus('analyzeStatus','✓ 분석 완료','ok');
       $('issueCard').classList.remove('hidden');
@@ -697,7 +686,7 @@
     loading('issueStatus','VC 발급 중...');
     $('issueResult').classList.add('hidden');
     try {
-      const vc = await apiFetch('/api/v1/credential/issue', { method:'POST', body: JSON.stringify({ github_username: username }) });
+      const vc = await getClient().issueCredential(username);
       currentVc = vc;
       $('issueResult').innerHTML = `
         <div class="vc-card">
@@ -721,11 +710,7 @@
     loading('anchorStatus','Polygon Amoy에 기록 중...');
     $('anchorResult').classList.add('hidden');
     try {
-      const r = await apiFetch('/api/v1/credential/anchor', {
-        method:'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ credential_id: currentVc.credential_id }),
-      });
+      const r = await getClient().anchorCredential(currentVc.credential_id, token);
       if (r.document) currentVc.document = r.document;
       currentVc.blockchain_tx = r.blockchain_tx;
       $('anchorResult').innerHTML = `
@@ -759,7 +744,7 @@
         const doc = JSON.parse(e.target.result);
         loading('verifyStatus','서명 및 온체인 기록 검증 중...');
         $('verifyResult').classList.add('hidden');
-        const r = await apiFetch('/api/v1/credential/verify', { method:'POST', body: JSON.stringify({ document: doc }) });
+        const r = await getClient().verifyDocument(doc);
         renderVerify(r,'Document 검증 (크로스 인스턴스 지원)');
         setStatus('verifyStatus','✓ 검증 완료','ok');
       } catch(err) { setStatus('verifyStatus', err.message, 'err'); }
@@ -773,7 +758,7 @@
     loading('verifyStatus','검증 중...');
     $('verifyResult').classList.add('hidden');
     try {
-      const r = await apiFetch(`/api/v1/credential/verify/${encodeURIComponent(id)}`);
+      const r = await getClient().verifyCredential(id);
       renderVerify(r,'ID 조회 (동일 인스턴스)');
       setStatus('verifyStatus','✓ 검증 완료','ok');
     } catch(e) { setStatus('verifyStatus', e.message, 'err'); }
