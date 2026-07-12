@@ -5,7 +5,7 @@ import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -19,8 +19,10 @@ from pydantic import BaseModel
 from ossverify.analyzer.domain_analyzer import Domain, DomainAnalyzer
 from ossverify.analyzer.explanation_generator import ExplanationGenerator, ExplanationInput, ExplanationOutput
 from ossverify.analyzer.graph_analyzer import GraphAnalyzer
+from ossverify.analyzer.growth_analyzer import analyze_growth
 from ossverify.analyzer.influence_analyzer import InfluenceAnalyzer
 from ossverify.analyzer.score_calculator import ScoreCalculator, ScoreFeatures
+from ossverify.analyzer.skill_evidence_analyzer import SkillEvidenceAnalyzer
 from ossverify.collector.github_collector import GitHubCollector, GitHubData
 from ossverify.credential.vc_issuer import VCIssuer
 from ossverify.credential.vc_verifier import VCVerifier
@@ -247,9 +249,8 @@ def _profile_to_dict(profile: ProfessionalProfile) -> dict:
 def _do_analyze(request: AnalyzeRequest) -> dict:
     token = request.github_token or os.getenv("GITHUB_TOKEN")
     # 검색 결과 300건, 레포 300개로 제한 — 점수 지표가 전부 비율 기반이므로 통계적으로 동등
-    data = GitHubCollector(
-        github_token=token, max_search_pages=3, max_repo_pages=3
-    ).collect(request.github_username)
+    collector = GitHubCollector(github_token=token, max_search_pages=3, max_repo_pages=3)
+    data = collector.collect(request.github_username)
 
     contributor_score, maintainer_score, final_influence = InfluenceAnalyzer().analyze(data)
 
@@ -301,6 +302,9 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
 
     top_skills = _top_skills(data.languages)
 
+    # GitHub code search로 파일 패턴 집계 (토큰 있을 때만 — 인증 없이 rate limit 엄격)
+    file_patterns = collector.collect_file_patterns(data.username, top_skills) if token else {}
+
     # PageRank 50% + GNN 50% 혼합 — 구조적 중심성과 학습된 임베딩을 동등 반영
     combined_centrality = (graph_centrality.pagerank_score + graph_centrality.gnn_score) / 2
 
@@ -313,6 +317,84 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
             total_activity_count=_total_activity_count(data),
         )
     )
+
+    # ── Skill Evidence ──────────────────────────────────────────────────────
+    skill_evidence = SkillEvidenceAnalyzer().analyze(data, top_skills, file_patterns)
+    skill_evidence_list = [
+        {
+            "skill": se.skill,
+            "confidence": se.confidence,
+            "repo_count": se.repo_count,
+            "commit_count": se.commit_count,
+            "pr_count": se.pr_count,
+            "detected_frameworks": se.detected_frameworks,
+            "evidence_items": se.evidence_items,
+        }
+        for se in skill_evidence
+    ]
+
+    # ── Growth Analysis ──────────────────────────────────────────────────────
+    growth_data = [
+        {
+            "year": y.year,
+            "commit_count": y.commit_count,
+            "pr_count": y.pr_count,
+            "review_count": y.review_count,
+            "total": y.total,
+        }
+        for y in analyze_growth(data)
+    ]
+
+    # ── Repository Trust ─────────────────────────────────────────────────────
+    # 4요소: 외부 인기 25 + 외부 기여(PR/이슈) 25 + 유지보수(릴리즈) 25 + 문서화 25
+    import math as _math
+    from collections import Counter as _Counter
+
+    _repo_pr_count    = _Counter(pr.repo_full_name for pr in data.received_prs)
+    _repo_issue_count = _Counter(i.repo_full_name for i in data.received_issues)
+    _repo_release_count = _Counter(rel.repo_full_name for rel in data.releases)
+
+    def _repo_trust_score(r) -> float:
+        # (1) 외부 인기 — star + fork 로그 스케일 (최대 25점)
+        popularity = min(
+            _math.log10(r.stars + r.forks * 0.5 + 1) / _math.log10(50_001) * 25, 25.0
+        )
+        # (2) 외부 기여 — PR + 이슈 수신 (최대 25점)
+        ext_prs    = _repo_pr_count.get(r.full_name, 0)
+        ext_issues = _repo_issue_count.get(r.full_name, 0)
+        collaboration = min(
+            _math.log10(ext_prs + ext_issues + 1) / _math.log10(101) * 25, 25.0
+        )
+        # (3) 유지보수 — 릴리즈 이력 (최대 25점)
+        releases = _repo_release_count.get(r.full_name, 0)
+        maintenance = min(_math.log10(releases + 1) / _math.log10(21) * 25, 25.0)
+        # (4) 문서화 — README·Contributing·설명 풍부도 (최대 25점)
+        documentation = (
+            (8.0 if r.has_readme else 0.0)
+            + (7.0 if r.has_contributing_guide else 0.0)
+            + (min(len(r.description) / 8, 10.0) if r.description else 0.0)
+        )
+        return round(min(popularity + collaboration + maintenance + documentation, 100.0), 1)
+
+    all_repos = sorted(
+        data.owned_repos,
+        key=lambda r: _repo_trust_score(r),
+        reverse=True,
+    )[:8]
+    repo_trust = [
+        {
+            "name": r.full_name,
+            "stars": r.stars,
+            "forks": r.forks,
+            "ext_prs": _repo_pr_count.get(r.full_name, 0),
+            "ext_issues": _repo_issue_count.get(r.full_name, 0),
+            "releases": _repo_release_count.get(r.full_name, 0),
+            "primary_language": r.primary_language,
+            "trust_score": _repo_trust_score(r),
+            "description": r.description,
+        }
+        for r in all_repos
+    ]
 
     exp_output: Optional[ExplanationOutput] = None
     if _explanation_generator is not None:
@@ -373,6 +455,9 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
             "summary": exp_output.summary if exp_output else None,
             "reasons": exp_output.reasons if exp_output else [],
         },
+        "skill_evidence": skill_evidence_list,
+        "growth_data": growth_data,
+        "repo_trust": repo_trust,
         "analyzed_at": profile.analyzed_at.isoformat(),
     }
 

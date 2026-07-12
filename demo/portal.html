@@ -8,468 +8,372 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #30363d;
-      --text: #c9d1d9;
-      --text-muted: #8b949e;
-      --text-strong: #f0f6fc;
-      --accent: #58a6ff;
-      --green: #3fb950;
-      --red: #f85149;
-      --green-bg: #1a4731;
-      --red-bg: #3d1a1a;
-      --tag-bg: #21262d;
+      --bg:        #080c16;
+      --bg2:       #0e1424;
+      --bg3:       #141d30;
+      --border:    #1e2d45;
+      --border2:   #253655;
+      --text:      #c4d4e8;
+      --muted:     #6b84a8;
+      --dim:       #4a6280;
+      --strong:    #e8f1fa;
+      --teal:      #00c9a7;
+      --teal-dim:  #007a66;
+      --teal-glow: rgba(0,201,167,.12);
+      --teal-halo: rgba(0,201,167,.06);
+      --amber:     #f59e0b;
+      --amber-dim: rgba(245,158,11,.15);
+      --green:     #22c55e;
+      --green-dim: rgba(34,197,94,.12);
+      --red:       #ef4444;
+      --yellow:    #eab308;
+      --mono:      'Cascadia Code','JetBrains Mono','Fira Code','Consolas',ui-monospace,monospace;
+      --sans:      system-ui,-apple-system,'Segoe UI',sans-serif;
+      --r:         8px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f0f4f8; --bg2: #fff; --bg3: #e8eef5;
+        --border: #c8d8e8; --border2: #a8bdd0;
+        --text: #1e3050; --muted: #607080; --dim: #8090a0; --strong: #0a1a30;
+        --teal-glow: rgba(0,150,120,.08); --teal-halo: rgba(0,150,120,.05); --teal-dim: #00796b;
+        --amber-dim: rgba(180,120,0,.1); --green-dim: rgba(20,160,60,.1);
+      }
+    }
+    :root[data-theme="light"] {
+      --bg: #f0f4f8; --bg2: #fff; --bg3: #e8eef5;
+      --border: #c8d8e8; --border2: #a8bdd0;
+      --text: #1e3050; --muted: #607080; --dim: #8090a0; --strong: #0a1a30;
+      --teal-glow: rgba(0,150,120,.08); --teal-halo: rgba(0,150,120,.05); --teal-dim: #00796b;
+      --amber-dim: rgba(180,120,0,.1); --green-dim: rgba(20,160,60,.1);
+    }
+    :root[data-theme="dark"] {
+      --bg: #080c16; --bg2: #0e1424; --bg3: #141d30;
+      --border: #1e2d45; --border2: #253655;
+      --text: #c4d4e8; --muted: #6b84a8; --dim: #4a6280; --strong: #e8f1fa;
+      --teal-glow: rgba(0,201,167,.12); --teal-halo: rgba(0,201,167,.06); --teal-dim: #007a66;
+      --amber-dim: rgba(245,158,11,.15); --green-dim: rgba(34,197,94,.12);
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    body { font-family: var(--sans); font-size: 15px; background: var(--bg); color: var(--text); min-height: 100vh; }
 
     /* ── Header ── */
     header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 40px;
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      height: 56px;
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 32px; display: flex; align-items: center; gap: 24px; height: 54px;
     }
-
-    .logo { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
-
-    .tabs { display: flex; gap: 0; height: 100%; }
-
+    .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+    .logo-mark {
+      width: 26px; height: 26px; border-radius: 6px; background: var(--teal);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .logo-mark svg { width: 14px; height: 14px; fill: #030a08; }
+    .logo-text { font-family: var(--mono); font-size: .88rem; font-weight: 600; color: var(--strong); }
+    .tabs { display: flex; height: 100%; gap: 2px; margin-left: 6px; }
     .tab {
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
-      user-select: none;
+      display: flex; align-items: center; padding: 0 16px;
+      font-size: .82rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s; user-select: none;
     }
-
     .tab:hover { color: var(--text); }
-    .tab.active { color: var(--text-strong); border-bottom-color: var(--accent); }
-
+    .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+    .server-wrap { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .server-label { font-family: var(--mono); font-size: .7rem; color: var(--dim); text-transform: uppercase; letter-spacing: .07em; }
     .server-input {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.8rem;
-      color: var(--text-muted);
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 5px 10px; font-family: var(--mono); font-size: .72rem;
+      width: 196px; outline: none; transition: border-color .15s;
     }
-
-    .server-input input {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 4px 10px;
-      font-size: 0.8rem;
-      width: 200px;
-      outline: none;
-    }
-
-    .server-input input:focus { border-color: var(--accent); }
+    .server-input:focus { border-color: var(--teal); }
 
     /* ── Layout ── */
-    .page { display: none; max-width: 780px; margin: 48px auto; padding: 0 24px; }
+    .page { display: none; max-width: 780px; margin: 40px auto; padding: 0 24px 72px; }
     .page.active { display: block; }
 
     /* ── Card ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 28px;
-      margin-bottom: 20px;
-    }
-
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-strong);
-      margin-bottom: 6px;
-    }
-
-    .card-desc {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; margin-bottom: 14px; }
+    .step-eyebrow { font-family: var(--mono); font-size: .65rem; font-weight: 600; color: var(--teal); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+    .card-title { font-size: .97rem; font-weight: 600; color: var(--strong); margin-bottom: 4px; }
+    .card-desc { font-size: .8rem; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
 
     /* ── Form ── */
-    .field { margin-bottom: 14px; }
-    .field label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; }
-
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 9px 12px;
-      font-size: 0.88rem;
-      outline: none;
-      transition: border-color 0.15s;
+    .field { margin-bottom: 11px; }
+    .field-label { display: block; font-size: .72rem; font-weight: 500; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em; }
+    .field-label .opt { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: .65; margin-left: 4px; }
+    input[type=text], input[type=password] {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 8px 12px; font-family: var(--mono); font-size: .82rem;
+      outline: none; transition: border-color .15s, box-shadow .15s;
     }
+    input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
 
-    input:focus { border-color: var(--accent); }
-
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #238636;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 9px 20px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
+      display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+      border-radius: 6px; padding: 7px 16px; font-family: var(--sans); font-size: .82rem;
+      font-weight: 500; cursor: pointer; transition: opacity .15s, box-shadow .15s;
     }
-
-    .btn:hover { background: #2ea043; }
-    .btn:disabled { background: var(--tag-bg); color: #484f58; cursor: not-allowed; }
-    .btn.outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn.outline:hover { background: var(--tag-bg); }
-    .btn.blue { background: #1158a4; }
-    .btn.blue:hover { background: #1a6fd4; }
-
-    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .btn:hover:not(:disabled) { opacity: .85; }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-primary { background: var(--teal); color: #030a08; }
+    .btn-primary:hover:not(:disabled) { opacity: 1; box-shadow: 0 0 0 3px var(--teal-glow); }
+    .btn-secondary { background: var(--bg3); border-color: var(--border2); color: var(--text); }
+    .btn-accent { background: #0e2a25; border-color: var(--teal-dim); color: var(--teal); }
 
     /* ── Status ── */
-    .status {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-top: 10px;
-      min-height: 20px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .status { font-family: var(--mono); font-size: .74rem; color: var(--muted); margin-top: 10px; min-height: 18px; display: flex; align-items: center; gap: 7px; }
     .status.ok { color: var(--green); }
     .status.err { color: var(--red); }
-
-    .spinner {
-      width: 13px; height: 13px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-      flex-shrink: 0;
-    }
+    .spin { width: 11px; height: 11px; border: 1.5px solid var(--border2); border-top-color: var(--teal); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── VC Card ── */
-    .vc-card {
-      background: var(--bg);
-      border: 1px solid #388bfd44;
-      border-radius: 8px;
-      padding: 20px;
-      margin-top: 20px;
-    }
+    /* ── Section label ── */
+    .sec-label { font-family: var(--mono); font-size: .66rem; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 
-    .vc-badge {
-      display: inline-block;
-      background: #388bfd18;
-      border: 1px solid #388bfd44;
-      color: var(--accent);
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      padding: 2px 9px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-    }
+    /* ── Tile grid ── */
+    .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr)); gap: 8px; margin: 14px 0; }
+    .tile { background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 12px 10px; text-align: center; }
+    .tile.hi { border-color: var(--teal-dim); background: var(--teal-halo); }
+    .tile-val { font-family: var(--mono); font-size: 1.35rem; font-weight: 600; color: var(--strong); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .tile.hi .tile-val { color: var(--teal); }
+    .tile-lbl { font-size: .67rem; color: var(--muted); margin-top: 3px; }
 
-    .vc-row { display: flex; gap: 10px; margin-bottom: 8px; font-size: 0.85rem; align-items: baseline; }
-    .vc-row .k { color: var(--text-muted); min-width: 110px; flex-shrink: 0; }
-    .vc-row .v { color: var(--text); word-break: break-all; }
-    .vc-row code { font-family: monospace; font-size: 0.78rem; background: var(--tag-bg); padding: 1px 5px; border-radius: 3px; }
+    /* ── Domain bars ── */
+    .bar-list { display: flex; flex-direction: column; gap: 6px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; font-size: .8rem; }
+    .bar-name { width: 86px; flex-shrink: 0; color: var(--text); font-size: .79rem; }
+    .bar-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--teal); border-radius: 3px; transition: width .7s cubic-bezier(.4,0,.2,1); opacity: .8; }
+    .bar-row.top .bar-fill { opacity: 1; }
+    .bar-val { width: 38px; text-align: right; font-family: var(--mono); font-size: .74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .bar-row.top .bar-val { color: var(--teal); }
 
-    /* ── Score grid ── */
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 10px;
-      margin: 16px 0;
-    }
+    /* ── Breakdown ── */
+    .breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .bk-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; }
+    .bk-label { font-size: .68rem; color: var(--dim); }
+    .bk-val { font-family: var(--mono); font-size: .95rem; font-weight: 600; color: var(--amber); margin-top: 3px; font-variant-numeric: tabular-nums; }
 
-    .score-tile {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      text-align: center;
-    }
+    /* ── Skill Evidence ── */
+    .skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 560px) { .skill-grid { grid-template-columns: 1fr; } }
+    .skill-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 14px; }
+    .sk-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .sk-name { font-family: var(--mono); font-size: .85rem; font-weight: 600; color: var(--strong); }
+    .sk-conf { font-family: var(--mono); font-size: .78rem; color: var(--teal); font-variant-numeric: tabular-nums; }
+    .sk-bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+    .sk-bar-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width .6s ease; }
+    .sk-evidence { display: flex; flex-direction: column; gap: 3px; }
+    .sk-ev-item { font-size: .73rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .sk-ev-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--teal); flex-shrink: 0; opacity: .7; }
 
-    .score-tile .val { font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
-    .score-tile .lbl { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; }
+    /* ── Growth chart ── */
+    .chart-wrap { position: relative; }
+    .chart-canvas { width: 100%; display: block; border-radius: 4px; }
+    .chart-legend { display: flex; gap: 16px; margin-top: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: .73rem; color: var(--muted); }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-    /* ── Verify result ── */
-    .verify-panel {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-top: 20px;
-    }
+    /* ── Repo trust ── */
+    .repo-list { display: flex; flex-direction: column; gap: 6px; }
+    .repo-item { display: flex; align-items: center; gap: 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 10px 14px; }
+    .repo-stars { font-family: var(--mono); font-size: .78rem; color: var(--amber); min-width: 48px; font-variant-numeric: tabular-nums; }
+    .repo-info { flex: 1; min-width: 0; }
+    .repo-name { font-family: var(--mono); font-size: .78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .repo-desc { font-size: .71rem; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .repo-lang { font-family: var(--mono); font-size: .66rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; flex-shrink: 0; }
+    .repo-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+    .repo-badge { font-family: var(--mono); font-size: .65rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; }
+    .repo-trust-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .repo-trust-score { font-family: var(--mono); font-size: .78rem; font-weight: 600; color: var(--amber); font-variant-numeric: tabular-nums; }
+    .repo-trust-bar { width: 56px; }
+    .repo-trust-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .repo-trust-fill { height: 100%; background: var(--amber); border-radius: 2px; }
 
-    .verdict {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
+    /* ── AI explain ── */
+    .explain-box { background: var(--teal-halo); border: 1px solid var(--teal-dim); border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .explain-eye { font-family: var(--mono); font-size: .64rem; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+    .explain-sum { font-size: .84rem; color: var(--text); line-height: 1.65; margin-bottom: 10px; }
+    .reason-list { display: flex; flex-direction: column; gap: 4px; }
+    .reason-item { font-size: .79rem; color: var(--muted); display: flex; gap: 8px; }
+    .reason-arr { color: var(--teal); flex-shrink: 0; }
 
-    .verdict-icon { font-size: 2rem; }
+    /* ── VC card ── */
+    .vc-card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 7px; padding: 16px; margin-top: 16px; }
+    .vc-badge { display: inline-block; background: var(--teal-halo); border: 1px solid var(--teal-dim); color: var(--teal); font-family: var(--mono); font-size: .6rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; margin-bottom: 12px; }
+    .vc-row { display: flex; gap: 10px; font-size: .8rem; margin-bottom: 6px; align-items: flex-start; }
+    .vc-key { min-width: 96px; flex-shrink: 0; color: var(--dim); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; margin-top: 1px; }
+    .vc-val { color: var(--text); word-break: break-all; font-family: var(--mono); font-size: .73rem; }
 
-    .verdict-text .main { font-size: 1.1rem; font-weight: 700; }
-    .verdict-text .sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-    .verdict-text.valid .main { color: var(--green); }
-    .verdict-text.invalid .main { color: var(--red); }
-
-    .check-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 0;
-      border-top: 1px solid var(--border);
-      font-size: 0.85rem;
-    }
-
-    .check-icon { font-size: 1rem; width: 20px; text-align: center; }
-    .check-label { flex: 1; color: var(--text-muted); }
-    .check-value { font-weight: 600; }
-    .check-value.yes { color: var(--green); }
-    .check-value.no { color: var(--red); }
-    .check-value.warn { color: #e3b341; }
-
-    .subject-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-
-    .subject-item .sk { font-size: 0.72rem; color: var(--text-muted); }
-    .subject-item .sv { font-size: 0.9rem; color: var(--text-strong); font-weight: 500; margin-top: 2px; }
-
-    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-    .pill {
-      background: var(--tag-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1px 9px;
-      font-size: 0.75rem;
-    }
+    /* ── Pills ── */
+    .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+    .pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; font-family: var(--mono); font-size: .7rem; color: var(--muted); }
 
     /* ── Upload zone ── */
-    .upload-zone {
-      border: 2px dashed var(--border);
-      border-radius: 8px;
-      padding: 36px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-    }
+    .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--r); padding: 36px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--teal); background: var(--teal-halo); }
+    .uz-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .uz-text { font-size: .84rem; color: var(--muted); }
+    .uz-hint { font-family: var(--mono); font-size: .7rem; color: var(--dim); margin-top: 3px; }
+    input[type=file] { display: none; }
 
-    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #388bfd08; }
-    .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
-    .upload-zone .label { font-size: 0.9rem; color: var(--text-muted); }
-    .upload-zone .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+    /* ── Divider ── */
+    .divider-or { display: flex; align-items: center; gap: 10px; margin: 18px 0 14px; }
+    .divider-or::before, .divider-or::after { content:''; flex:1; height:1px; background:var(--border); }
+    .divider-or span { font-size: .72rem; color: var(--dim); }
 
-    input[type="file"] { display: none; }
+    /* ── Verdict ── */
+    .verdict-wrap { display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .verdict-icon { font-size: 2.4rem; line-height: 1; }
+    .verdict-main { font-size: 1.05rem; font-weight: 700; }
+    .verdict-main.valid { color: var(--green); }
+    .verdict-main.invalid { color: var(--red); }
+    .verdict-sub { font-size: .75rem; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+
+    /* ── Check list ── */
+    .check-list { display: flex; flex-direction: column; }
+    .check-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .83rem; }
+    .check-item:last-child { border-bottom: none; }
+    .ci-dot { width: 20px; text-align: center; font-size: .88rem; flex-shrink: 0; }
+    .ci-lbl { flex: 1; color: var(--muted); }
+    .ci-val { font-family: var(--mono); font-size: .79rem; font-weight: 600; }
+    .ci-val.yes { color: var(--green); }
+    .ci-val.no { color: var(--red); }
+    .ci-val.warn { color: var(--yellow); }
+
+    /* ── Subject grid ── */
+    .subj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .sg-k { font-size: .67rem; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+    .sg-v { font-size: .88rem; color: var(--strong); font-weight: 500; margin-top: 2px; }
+    .sg-v.mono { font-family: var(--mono); font-size: .74rem; }
+
+    /* ── Chain box ── */
+    .chain-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 12px 14px; margin-top: 14px; }
+    .chain-title { font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--green); margin-bottom: 5px; }
+    .chain-title.mock { color: var(--yellow); }
+    .chain-tx { font-family: var(--mono); font-size: .68rem; color: var(--muted); word-break: break-all; }
 
     details { margin-top: 14px; }
-    summary { cursor: pointer; font-size: 0.78rem; color: var(--text-muted); user-select: none; }
-    pre.json {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      font-size: 0.73rem;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      margin-top: 8px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .divider { height: 1px; background: var(--border); margin: 20px 0; }
-
-    .step-label {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      margin-bottom: 14px;
-    }
+    summary { cursor: pointer; font-size: .74rem; color: var(--dim); user-select: none; list-style: none; display: flex; align-items: center; gap: 5px; }
+    summary::before { content:'▶'; font-size: .55rem; transition: transform .2s; }
+    details[open] summary::before { transform: rotate(90deg); }
+    pre.raw { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: var(--mono); font-size: .68rem; overflow: auto; white-space: pre-wrap; word-break: break-all; margin-top: 8px; max-height: 240px; color: var(--muted); }
 
     .hidden { display: none !important; }
+    .mt-sm { margin-top: 8px; }
+    .mt-md { margin-top: 14px; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">OSSVerify</div>
+  <a class="logo" href="#">
+    <div class="logo-mark">
+      <svg viewBox="0 0 14 14"><path d="M7 1L1 4v6l6 3 6-3V4L7 1zm0 1.5L11.5 5v4L7 11.5 2.5 9V5L7 2.5z"/><circle cx="7" cy="7" r="1.5"/></svg>
+    </div>
+    <span class="logo-text">OSSVerify</span>
+  </a>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('dev')">개발자 포털</div>
     <div class="tab" onclick="switchTab('verify')">검증 포털</div>
   </div>
-  <div class="server-input">
-    <span>API</span>
-    <input type="text" id="serverUrl" value="http://localhost:8000" />
+  <div class="server-wrap">
+    <span class="server-label">API</span>
+    <input type="text" id="serverUrl" class="server-input" value="http://localhost:8000" />
   </div>
 </header>
 
-<!-- ── Developer Page ── -->
+<!-- ════════════ Developer ════════════ -->
 <div class="page active" id="page-dev">
 
-  <!-- Step 1: Analyze -->
   <div class="card">
-    <div class="step-label">Step 1 · GitHub 활동 분석</div>
+    <div class="step-eyebrow">01 · 분석</div>
     <div class="card-title">오픈소스 기여 역량 분석</div>
-    <div class="card-desc">GitHub 사용자명을 입력하면 커밋, PR, 코드 리뷰 등 공개 활동을 분석해 역량 점수를 산출합니다.</div>
-    <div class="field">
-      <label>GitHub 사용자명</label>
-      <input type="text" id="devUsername" placeholder="예: torvalds" />
-    </div>
-    <div class="field">
-      <label>GitHub Token <span style="font-size:0.75rem;color:var(--text-muted)">(선택 — rate limit 완화)</span></label>
-      <input type="password" id="devToken" placeholder="ghp_..." />
-    </div>
-    <div class="btn-row">
-      <button class="btn" onclick="runAnalyze()">분석 시작</button>
-    </div>
+    <div class="card-desc">GitHub 공개 활동을 AI로 분석하여 도메인 적합도, 기여자 점수, Skill Evidence, 성장 추이를 산출합니다.</div>
+    <div class="field"><label class="field-label">GitHub 사용자명</label><input type="text" id="devUsername" placeholder="예: torvalds" /></div>
+    <div class="field"><label class="field-label">GitHub Token <span class="opt">(선택)</span></label><input type="password" id="devToken" placeholder="ghp_..." /></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="runAnalyze()">분석 시작</button></div>
     <div class="status" id="analyzeStatus"></div>
     <div id="analyzeResult" class="hidden"></div>
   </div>
 
-  <!-- Step 2: Issue -->
   <div class="card hidden" id="issueCard">
-    <div class="step-label">Step 2 · 검증 가능한 자격증명 발급</div>
+    <div class="step-eyebrow">02 · 발급</div>
     <div class="card-title">Verifiable Credential 발급</div>
-    <div class="card-desc">분석 결과를 Ed25519 서명으로 봉인한 W3C VC를 발급합니다. 발급된 VC는 서버에 저장되며 누구든 서명을 검증할 수 있습니다.</div>
-    <div class="btn-row">
-      <button class="btn" onclick="runIssue()">VC 발급</button>
-    </div>
+    <div class="card-desc">분석 결과를 Ed25519로 서명한 W3C VC를 발급합니다.</div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="runIssue()">VC 발급</button></div>
     <div class="status" id="issueStatus"></div>
     <div id="issueResult" class="hidden"></div>
   </div>
 
-  <!-- Step 3: Anchor -->
   <div class="card hidden" id="anchorCard">
-    <div class="step-label">Step 3 · 블록체인 앵커링 (선택)</div>
-    <div class="card-title">Polygon Amoy Testnet에 해시 기록</div>
-    <div class="card-desc">VC의 SHA-256 해시를 Polygon Amoy 스마트 컨트랙트에 기록합니다. 이후 서버가 없어도 온체인에서 발급 사실을 독립적으로 증명할 수 있습니다.</div>
-    <div class="field">
-      <label>GitHub Token <span style="font-size:0.75rem;color:var(--text-muted)">(본인 인증용 — credentialSubject와 동일 계정)</span></label>
-      <input type="password" id="anchorToken" placeholder="ghp_..." />
-    </div>
-    <div class="btn-row">
-      <button class="btn blue" onclick="runAnchor()">온체인 앵커링</button>
-    </div>
+    <div class="step-eyebrow">03 · 앵커링 (선택)</div>
+    <div class="card-title">Polygon Amoy 온체인 기록</div>
+    <div class="card-desc">VC 해시를 스마트 컨트랙트에 기록합니다. 이후 서버 없이도 독립 검증이 가능합니다.</div>
+    <div class="field"><label class="field-label">GitHub Token <span class="opt">(본인 인증용)</span></label><input type="password" id="anchorToken" placeholder="ghp_..." /></div>
+    <div class="btn-row"><button class="btn btn-accent" onclick="runAnchor()">온체인 앵커링</button></div>
     <div class="status" id="anchorStatus"></div>
     <div id="anchorResult" class="hidden"></div>
   </div>
 
-  <!-- Step 4: Download -->
   <div class="card hidden" id="downloadCard">
-    <div class="step-label">Step 4 · VC 파일 저장</div>
+    <div class="step-eyebrow">04 · 저장</div>
     <div class="card-title">검증서 다운로드</div>
-    <div class="card-desc">발급된 VC 문서를 JSON 파일로 저장합니다. 채용담당자나 제3자에게 전달하면 검증 포털에서 즉시 확인할 수 있습니다.</div>
-    <div class="btn-row">
-      <button class="btn outline" onclick="downloadVC()">VC 파일 다운로드 (.json)</button>
-    </div>
+    <div class="card-desc">VC 문서를 JSON으로 저장합니다. 검증 포털에 업로드하면 즉시 확인 가능합니다.</div>
+    <div class="btn-row"><button class="btn btn-secondary" onclick="downloadVC()">VC 파일 다운로드 (.json)</button></div>
   </div>
 
 </div>
 
-<!-- ── Verifier Page ── -->
+<!-- ════════════ Verifier ════════════ -->
 <div class="page" id="page-verify">
-
   <div class="card">
     <div class="card-title">오픈소스 기여 검증서 확인</div>
-    <div class="card-desc">개발자로부터 전달받은 VC 파일을 업로드하거나 credential ID를 입력하면 서명·무결성·온체인 기록을 즉시 검증합니다.</div>
-
-    <!-- Upload -->
-    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+    <div class="card-desc">개발자로부터 전달받은 VC 파일을 업로드하거나 Credential ID를 입력하면 Ed25519 서명, 무결성, Polygon 온체인 기록을 즉시 검증합니다.</div>
+    <div class="upload-zone" id="uploadZone"
+         onclick="document.getElementById('fileInput').click()"
          ondragover="event.preventDefault();this.classList.add('drag')"
          ondragleave="this.classList.remove('drag')"
          ondrop="handleDrop(event)">
-      <div class="icon">📄</div>
-      <div class="label">VC 파일을 여기에 드래그하거나 클릭해서 선택</div>
-      <div class="hint">.json 파일</div>
+      <div class="uz-icon">📄</div>
+      <div class="uz-text">VC 파일을 드래그하거나 클릭해 선택</div>
+      <div class="uz-hint">.json 파일</div>
     </div>
     <input type="file" id="fileInput" accept=".json" onchange="handleFile(event)" />
-
-    <div class="divider"></div>
-
-    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">또는 Credential ID로 조회 (같은 서버)</div>
-    <div class="field">
-      <input type="text" id="credentialId" placeholder="urn:uuid:..." />
-    </div>
-    <div class="btn-row">
-      <button class="btn outline" onclick="runVerifyById()">ID로 검증</button>
-    </div>
-
+    <div class="divider-or"><span>또는 Credential ID로 조회</span></div>
+    <div class="field"><input type="text" id="credentialId" placeholder="urn:uuid:..." /></div>
+    <div class="btn-row"><button class="btn btn-secondary" onclick="runVerifyById()">ID로 검증</button></div>
     <div class="status" id="verifyStatus"></div>
   </div>
-
   <div id="verifyResult" class="hidden"></div>
-
 </div>
 
 <script>
   const $ = id => document.getElementById(id);
-
   let currentVc = null;
 
+  // ── Theme detection for chart colors ──────────────────────────────────────
+  function isDark() {
+    const th = document.documentElement.getAttribute('data-theme');
+    if (th === 'dark') return true;
+    if (th === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
   function apiBase() { return $('serverUrl').value.replace(/\/$/, ''); }
-
-  function setStatus(id, msg, type) {
-    const el = $(id);
-    el.innerHTML = msg;
-    el.className = 'status' + (type ? ' ' + type : '');
-  }
-
-  function loading(id, msg = '처리 중...') {
-    $(id).innerHTML = `<span class="spinner"></span>${msg}`;
-    $(id).className = 'status';
-  }
-
+  function setStatus(id, msg, cls) { $(id).innerHTML = msg; $(id).className = 'status' + (cls ? ' ' + cls : ''); }
+  function loading(id, msg) { $(id).innerHTML = `<span class="spin"></span>${msg ?? '처리 중...'}`; $(id).className = 'status'; }
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   async function apiFetch(path, opts = {}) {
-    const { headers: extraHeaders = {}, ...rest } = opts;
-    const res = await fetch(apiBase() + path, {
-      headers: { 'Content-Type': 'application/json', ...extraHeaders },
-      ...rest,
-    });
+    const { headers: h = {}, ...rest } = opts;
+    const res = await fetch(apiBase() + path, { headers: { 'Content-Type': 'application/json', ...h }, ...rest });
     const body = await res.json();
-    if (!body.success) {
-      const e = body.error || {};
-      throw new Error(`[${e.code || res.status}] ${e.message || '오류'}`);
-    }
+    if (!body.success) { const e = body.error||{}; throw new Error(`[${e.code||res.status}] ${e.message||'오류'}`); }
     return body.data;
   }
 
@@ -479,265 +383,458 @@
       const job = await apiFetch(`/api/v1/analyze/status/${jobId}`);
       if (job.status === 'complete') return job.data;
       if (job.status === 'failed') throw new Error(job.error || '분석 실패');
-      setStatus('analyzeStatus', `<span class="spinner"></span>분석 중... (${(i+1)*3}초 경과)`);
+      setStatus('analyzeStatus', `<span class="spin"></span>분석 중... ${(i+1)*3}초 경과`);
     }
     throw new Error('분석 타임아웃');
   }
 
   function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'dev')));
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0)===(tab==='dev')));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     $(`page-${tab}`).classList.add('active');
   }
 
-  // ── Analyze ──────────────────────────────────────────────────────────────
+  // ─────────────────────────── Analyze ────────────────────────────────────
   async function runAnalyze() {
     const username = $('devUsername').value.trim();
     const token = $('devToken').value.trim();
-    if (!username) { setStatus('analyzeStatus', 'GitHub 사용자명을 입력하세요.', 'err'); return; }
-
-    loading('analyzeStatus', '분석 작업 시작 중...');
+    if (!username) { setStatus('analyzeStatus','GitHub 사용자명을 입력하세요.','err'); return; }
+    loading('analyzeStatus','분석 시작 중...');
     $('analyzeResult').classList.add('hidden');
-    $('issueCard').classList.add('hidden');
-    $('anchorCard').classList.add('hidden');
-    $('downloadCard').classList.add('hidden');
+    ['issueCard','anchorCard','downloadCard'].forEach(id => $(id).classList.add('hidden'));
     currentVc = null;
-
     try {
       const payload = { github_username: username };
       if (token) payload.github_token = token;
-      const { job_id } = await apiFetch('/api/v1/analyze', { method: 'POST', body: JSON.stringify(payload) });
+      const { job_id } = await apiFetch('/api/v1/analyze', { method:'POST', body: JSON.stringify(payload) });
       const result = await poll(job_id);
       renderAnalysis(result);
-      setStatus('analyzeStatus', '✓ 분석 완료', 'ok');
+      setStatus('analyzeStatus','✓ 분석 완료','ok');
       $('issueCard').classList.remove('hidden');
-    } catch (e) {
-      setStatus('analyzeStatus', e.message, 'err');
-    }
+    } catch(e) { setStatus('analyzeStatus', e.message, 'err'); }
   }
+
+  function fmt(v, d=1) { return v != null ? Number(v).toFixed(d) : '—'; }
+  function fmtPct(v)    { return v != null ? Number(v).toFixed(1) + '%' : '—'; }
 
   function renderAnalysis(r) {
     const cs = r.contributor_score || {};
     const ms = r.maintainer_score || {};
     const gc = r.graph_centrality || {};
-    const skills = (r.top_skills || []).slice(0, 5);
+    const exp = r.explanation || {};
+    const domains = r.domain_scores || {};
+    const skills = r.top_skills || [];
+    const skillEvidence = r.skill_evidence || [];
+    const growthData = r.growth_data || [];
+    const repoTrust = r.repo_trust || [];
+
+    // Domain bars
+    const domainEntries = Object.entries(domains).sort((a,b) => b[1]-a[1]);
+    const maxD = Math.max(...domainEntries.map(e=>e[1]), 1);
+    const topDomain = domainEntries[0]?.[0];
+    const bars = domainEntries.map(([name, val]) => `
+      <div class="bar-row${name===topDomain?' top':''}">
+        <div class="bar-name">${esc(name)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(val/maxD*100).toFixed(1)}%"></div></div>
+        <div class="bar-val">${val.toFixed(1)}</div>
+      </div>`).join('');
+
+    // Contributor/Maintainer breakdown
+    const contribRows = [
+      ['PR 머지율', cs.pr_merge_rate], ['리뷰 품질', cs.review_quality],
+      ['Maintainer 승인', cs.maintainer_approval], ['프로젝트 규모', cs.project_scale],
+      ['기여 지속성', cs.contribution_consistency], ['이슈 해결률', cs.issue_resolution_rate],
+    ];
+    const maintRows = [
+      ['채택률', ms.adoption_rate], ['커뮤니티 활동', ms.community_activity],
+      ['리뷰 품질', ms.review_quality], ['이슈 응답', ms.issue_response_speed],
+      ['릴리즈 일관성', ms.release_consistency], ['문서화 수준', ms.documentation_level],
+    ];
+
+    // Skill Evidence cards
+    const skillCards = skillEvidence.map(se => `
+      <div class="skill-card">
+        <div class="sk-header">
+          <span class="sk-name">${esc(se.skill)}</span>
+          <span class="sk-conf">${se.confidence.toFixed(1)}%</span>
+        </div>
+        <div class="sk-bar-track">
+          <div class="sk-bar-fill" style="width:${Math.min(se.confidence,100)}%"></div>
+        </div>
+        <div class="sk-evidence">
+          ${(se.evidence_items||[]).map(item=>`
+            <div class="sk-ev-item"><span class="sk-ev-dot"></span>${esc(item)}</div>
+          `).join('')}
+        </div>
+      </div>`).join('');
+
+    // Repo trust list
+    const maxTrust = Math.max(...repoTrust.map(r=>r.trust_score), 1);
+    const repoItems = repoTrust.slice(0,6).map(repo => {
+      const badges = [];
+      if (repo.stars > 0)      badges.push(`★ ${repo.stars >= 1000 ? (repo.stars/1000).toFixed(1)+'k' : repo.stars}`);
+      if (repo.ext_prs > 0)    badges.push(`PR ${repo.ext_prs}`);
+      if (repo.ext_issues > 0) badges.push(`이슈 ${repo.ext_issues}`);
+      if (repo.releases > 0)   badges.push(`릴리즈 ${repo.releases}`);
+      return `
+      <div class="repo-item">
+        <div class="repo-info">
+          <div class="repo-name">${esc(repo.name)}</div>
+          ${repo.description ? `<div class="repo-desc">${esc(repo.description)}</div>` : ''}
+          ${badges.length ? `<div class="repo-badges">${badges.map(b=>`<span class="repo-badge">${esc(b)}</span>`).join('')}</div>` : ''}
+        </div>
+        ${repo.primary_language ? `<div class="repo-lang">${esc(repo.primary_language)}</div>` : ''}
+        <div class="repo-trust-right">
+          <div class="repo-trust-score">${repo.trust_score.toFixed(0)}</div>
+          <div class="repo-trust-bar">
+            <div class="repo-trust-track">
+              <div class="repo-trust-fill" style="width:${(repo.trust_score/maxTrust*100).toFixed(1)}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // AI explanation
+    const reasons = (exp.reasons||[]).map(r=>`
+      <div class="reason-item"><span class="reason-arr">→</span><span>${esc(r)}</span></div>`).join('');
 
     $('analyzeResult').innerHTML = `
-      <div class="score-grid">
-        ${tile(r.overall_score?.toFixed(1) ?? '—', '종합 점수')}
-        ${tile(r.influence_level ?? '—', '영향력 레벨')}
-        ${tile(r.activity_level ?? '—', '활동 수준')}
-        ${tile(r.primary_domain ?? '—', '주요 도메인')}
-        ${tile((cs.total ?? 0).toFixed(1), '기여자 점수')}
-        ${tile((ms.total ?? 0).toFixed(1), '메인테이너 점수')}
+      <div class="sec-label">종합 지표</div>
+      <div class="tile-grid">
+        <div class="tile hi"><div class="tile-val">${fmt(r.overall_score)}</div><div class="tile-lbl">종합 점수</div></div>
+        <div class="tile"><div class="tile-val">${fmt(cs.total)}</div><div class="tile-lbl">기여자 점수</div></div>
+        <div class="tile"><div class="tile-val">${fmt(ms.total)}</div><div class="tile-lbl">메인테이너</div></div>
+        <div class="tile"><div class="tile-val">${fmt(gc.combined)}</div><div class="tile-lbl">그래프 영향력</div></div>
+        <div class="tile"><div class="tile-val" style="font-size:.9rem">${esc(r.influence_level??'—')}</div><div class="tile-lbl">영향력 레벨</div></div>
+        <div class="tile"><div class="tile-val" style="font-size:.85rem">${esc(r.primary_domain??'—')}</div><div class="tile-lbl">주요 도메인</div></div>
       </div>
-      ${skills.length ? `<div class="pill-row">${skills.map(s => `<span class="pill">${esc(s)}</span>`).join('')}</div>` : ''}
+
+      ${skills.length ? `<div class="pills">${skills.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div>` : ''}
+
+      <div class="sec-label">도메인 적합도</div>
+      <div class="bar-list">${bars}</div>
+
+      ${skillCards ? `<div class="sec-label">Skill Evidence</div><div class="skill-grid">${skillCards}</div>` : ''}
+
+      ${growthData.length >= 2 ? `
+        <div class="sec-label">성장 추이</div>
+        <div class="chart-wrap">
+          <canvas id="growthCanvas" class="chart-canvas" height="140"></canvas>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:#00c9a7"></div>커밋</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>PR</div>
+          </div>
+        </div>` : ''}
+
+      <div class="sec-label">기여자 세부 지표</div>
+      <div class="breakdown">${contribRows.map(([l,v])=>`
+        <div class="bk-item"><div class="bk-label">${esc(l)}</div><div class="bk-val">${fmtPct(v)}</div></div>`).join('')}
+      </div>
+
+      <div class="sec-label">메인테이너 세부 지표</div>
+      <div class="breakdown">${maintRows.map(([l,v])=>`
+        <div class="bk-item"><div class="bk-label">${esc(l)}</div><div class="bk-val">${fmtPct(v)}</div></div>`).join('')}
+      </div>
+
+      ${repoItems ? `<div class="sec-label">Repository 신뢰도</div><div class="repo-list">${repoItems}</div>` : ''}
+
+      ${exp.summary || reasons ? `
+        <div class="explain-box">
+          <div class="explain-eye">AI 평가 근거</div>
+          ${exp.summary ? `<div class="explain-sum">${esc(exp.summary)}</div>` : ''}
+          ${reasons ? `<div class="reason-list">${reasons}</div>` : ''}
+        </div>` : ''}
     `;
     $('analyzeResult').classList.remove('hidden');
-  }
 
-  function tile(val, lbl) {
-    return `<div class="score-tile"><div class="val">${esc(String(val))}</div><div class="lbl">${esc(lbl)}</div></div>`;
-  }
-
-  // ── Issue ────────────────────────────────────────────────────────────────
-  async function runIssue() {
-    const username = $('devUsername').value.trim();
-    loading('issueStatus', 'VC 발급 중...');
-    $('issueResult').classList.add('hidden');
-
-    try {
-      const vc = await apiFetch('/api/v1/credential/issue', {
-        method: 'POST',
-        body: JSON.stringify({ github_username: username }),
-      });
-      currentVc = vc;
-      renderVC(vc);
-      setStatus('issueStatus', '✓ VC 발급 완료', 'ok');
-      $('anchorCard').classList.remove('hidden');
-      $('downloadCard').classList.remove('hidden');
-    } catch (e) {
-      setStatus('issueStatus', e.message, 'err');
+    // Draw growth chart after DOM insertion
+    if (growthData.length >= 2) {
+      requestAnimationFrame(() => drawGrowthChart('growthCanvas', growthData));
     }
   }
 
-  function renderVC(vc) {
-    $('issueResult').innerHTML = `
-      <div class="vc-card">
-        <div class="vc-badge">Verifiable Credential</div>
-        <div class="vc-row"><span class="k">Credential ID</span><span class="v"><code>${esc(vc.credential_id)}</code></span></div>
-        <div class="vc-row"><span class="k">Issuer DID</span><span class="v"><code>${esc(vc.issuer)}</code></span></div>
-        <div class="vc-row"><span class="k">발급일시</span><span class="v">${esc(vc.issued_at)}</span></div>
-        <div class="vc-row"><span class="k">온체인 TX</span><span class="v">${vc.blockchain_tx ? `<code>${esc(vc.blockchain_tx)}</code>` : '<span style="color:var(--text-muted)">미앵커링</span>'}</span></div>
-      </div>
-    `;
-    $('issueResult').classList.remove('hidden');
+  // ─────────────────────────── Growth chart (Canvas) ──────────────────────
+  function drawGrowthChart(canvasId, data) {
+    const canvas = $(canvasId);
+    if (!canvas) return;
+    const dark = isDark();
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.offsetWidth || 700;
+    const H = 140;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const PAD = { t: 12, r: 16, b: 36, l: 38 };
+    const chartW = W - PAD.l - PAD.r;
+    const chartH = H - PAD.t - PAD.b;
+
+    const surface   = dark ? '#141d30' : '#e8eef5';
+    const gridColor = dark ? '#1e2d45' : '#c8d8e8';
+    const labelClr  = dark ? '#4a6280' : '#8090a0';
+    const TEAL = '#00c9a7';
+    const AMBER = '#f59e0b';
+    const GAP = 2;          // 2px gap between grouped bars
+    const GROUP_PAD = 0.3;  // 30% of slot as padding
+
+    const n = data.length;
+    const slotW = chartW / n;
+    const barW = Math.max(4, (slotW * (1 - GROUP_PAD) - GAP) / 2);
+
+    const maxVal = Math.max(...data.flatMap(d => [d.commit_count, d.pr_count]), 1);
+
+    // Background
+    ctx.fillStyle = surface;
+    ctx.roundRect(0, 0, W, H, 6);
+    ctx.fill();
+
+    // Grid lines (4 horizontal)
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 4; i++) {
+      const y = PAD.t + chartH * (1 - i / 4);
+      ctx.beginPath();
+      ctx.moveTo(PAD.l, y);
+      ctx.lineTo(PAD.l + chartW, y);
+      ctx.stroke();
+      // Y label
+      ctx.fillStyle = labelClr;
+      ctx.font = `10px ${getComputedStyle(document.documentElement).getPropertyValue('--mono') || 'monospace'}`;
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal * i / 4), PAD.l - 4, y + 3);
+    }
+
+    // Bars with rounded top (4px radius, anchored baseline)
+    function drawBar(x, y, w, h, color) {
+      if (h <= 0) return;
+      const r = Math.min(4, w / 2, h);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const baseline = PAD.t + chartH;
+
+    data.forEach((d, i) => {
+      const slotX = PAD.l + i * slotW;
+      const groupStart = slotX + slotW * GROUP_PAD / 2;
+
+      // Commit bar (teal)
+      const ch = (d.commit_count / maxVal) * chartH;
+      drawBar(groupStart, baseline - ch, barW, ch, TEAL);
+
+      // PR bar (amber), 2px gap
+      const ph = (d.pr_count / maxVal) * chartH;
+      drawBar(groupStart + barW + GAP, baseline - ph, barW, ph, AMBER);
+
+      // X label
+      ctx.fillStyle = labelClr;
+      ctx.font = `10px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(d.year, slotX + slotW / 2, baseline + 16);
+    });
+
+    // Tooltip state
+    canvas._data = data;
+    canvas._params = { PAD, slotW, chartH, baseline, barW, GAP, GROUP_PAD, maxVal };
   }
 
-  // ── Anchor ───────────────────────────────────────────────────────────────
+  // Growth chart tooltip
+  document.addEventListener('mousemove', function(e) {
+    const canvas = document.getElementById('growthCanvas');
+    if (!canvas || !canvas._data) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const { PAD, slotW, chartH, baseline, barW, GAP, GROUP_PAD } = canvas._params;
+    if (x < PAD.l || x > rect.width - PAD.r || y < PAD.t || y > baseline) { canvas._tip && hideTip(); return; }
+    const i = Math.floor((x - PAD.l) / slotW);
+    const d = canvas._data[i];
+    if (!d) { hideTip && hideTip(); return; }
+    showTip(e.pageX, e.pageY, `<b>${d.year}</b><br>커밋 ${d.commit_count}건 · PR ${d.pr_count}건`);
+  });
+  document.addEventListener('mouseleave', () => hideTip());
+
+  function showTip(px, py, html) {
+    let tip = document.getElementById('_tip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = '_tip';
+      Object.assign(tip.style, {
+        position:'fixed',zIndex:999,pointerEvents:'none',
+        background: isDark() ? '#1e2d45' : '#fff',
+        border: `1px solid ${isDark() ? '#253655' : '#c8d8e8'}`,
+        borderRadius:'6px',padding:'7px 11px',
+        fontFamily:'monospace',fontSize:'11px',
+        color: isDark() ? '#c4d4e8' : '#1e3050',
+        boxShadow:'0 4px 16px rgba(0,0,0,.3)',
+        lineHeight:'1.6',
+      });
+      document.body.appendChild(tip);
+    }
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (px + 14) + 'px';
+    tip.style.top  = (py - 10) + 'px';
+  }
+  function hideTip() {
+    const tip = document.getElementById('_tip');
+    if (tip) tip.style.display = 'none';
+  }
+
+  // ─────────────────────────── Issue ──────────────────────────────────────
+  async function runIssue() {
+    const username = $('devUsername').value.trim();
+    loading('issueStatus','VC 발급 중...');
+    $('issueResult').classList.add('hidden');
+    try {
+      const vc = await apiFetch('/api/v1/credential/issue', { method:'POST', body: JSON.stringify({ github_username: username }) });
+      currentVc = vc;
+      $('issueResult').innerHTML = `
+        <div class="vc-card">
+          <div class="vc-badge">Verifiable Credential · Ed25519Signature2020</div>
+          <div class="vc-row"><span class="vc-key">Credential ID</span><span class="vc-val">${esc(vc.credential_id)}</span></div>
+          <div class="vc-row"><span class="vc-key">Issuer DID</span><span class="vc-val">${esc(vc.issuer)}</span></div>
+          <div class="vc-row"><span class="vc-key">발급일시</span><span class="vc-val">${esc(vc.issued_at)}</span></div>
+        </div>`;
+      $('issueResult').classList.remove('hidden');
+      setStatus('issueStatus','✓ VC 발급 완료','ok');
+      $('anchorCard').classList.remove('hidden');
+      $('downloadCard').classList.remove('hidden');
+    } catch(e) { setStatus('issueStatus', e.message, 'err'); }
+  }
+
+  // ─────────────────────────── Anchor ─────────────────────────────────────
   async function runAnchor() {
     if (!currentVc) return;
     const token = $('anchorToken').value.trim();
-    if (!token) { setStatus('anchorStatus', 'GitHub 토큰을 입력하세요.', 'err'); return; }
-
-    loading('anchorStatus', 'Polygon Amoy에 기록 중...');
+    if (!token) { setStatus('anchorStatus','GitHub 토큰을 입력하세요.','err'); return; }
+    loading('anchorStatus','Polygon Amoy에 기록 중...');
     $('anchorResult').classList.add('hidden');
-
     try {
       const r = await apiFetch('/api/v1/credential/anchor', {
-        method: 'POST',
+        method:'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ credential_id: currentVc.credential_id }),
       });
-      currentVc.blockchain_tx = r.blockchain_tx;
       if (r.document) currentVc.document = r.document;
+      currentVc.blockchain_tx = r.blockchain_tx;
       $('anchorResult').innerHTML = `
-        <div style="margin-top:14px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;">
-          <div style="color:${r.is_on_chain ? 'var(--green)' : 'var(--text-muted)'}; font-weight:600; margin-bottom:6px">
-            ${r.is_on_chain ? '✓ 온체인 기록 완료' : '⚠ Mock TX (컨트랙트 미설정)'}
-          </div>
-          <div style="color:var(--text-muted);word-break:break-all">TX: <code style="font-family:monospace;font-size:0.75rem">${esc(r.blockchain_tx)}</code></div>
-        </div>
-      `;
+        <div class="chain-box">
+          <div class="chain-title${r.is_on_chain?'':' mock'}">${r.is_on_chain?'✓ Polygon Amoy 온체인 기록 완료':'⚠ Mock TX (컨트랙트 미설정)'}</div>
+          <div class="chain-tx">TX: ${esc(r.blockchain_tx)}</div>
+        </div>`;
       $('anchorResult').classList.remove('hidden');
-      setStatus('anchorStatus', r.is_on_chain ? '✓ 앵커링 완료' : '완료 (mock)', r.is_on_chain ? 'ok' : '');
-    } catch (e) {
-      setStatus('anchorStatus', e.message, 'err');
-    }
+      setStatus('anchorStatus', r.is_on_chain?'✓ 앵커링 완료':'완료 (mock)', r.is_on_chain?'ok':'');
+    } catch(e) { setStatus('anchorStatus', e.message, 'err'); }
   }
 
-  // ── Download ─────────────────────────────────────────────────────────────
+  // ─────────────────────────── Download ────────────────────────────────────
   function downloadVC() {
     if (!currentVc) return;
-    const blob = new Blob([JSON.stringify(currentVc.document, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(currentVc.document,null,2)], { type:'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `ossverify-vc-${$('devUsername').value.trim()}.json`;
     a.click();
   }
 
-  // ── Verify ───────────────────────────────────────────────────────────────
-  function handleDrop(e) {
-    e.preventDefault();
-    $('uploadZone').classList.remove('drag');
-    const file = e.dataTransfer.files[0];
-    if (file) readFile(file);
-  }
-
-  function handleFile(e) {
-    const file = e.target.files[0];
-    if (file) readFile(file);
-  }
+  // ─────────────────────────── Verify ──────────────────────────────────────
+  function handleDrop(e) { e.preventDefault(); $('uploadZone').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) readFile(f); }
+  function handleFile(e) { const f=e.target.files[0]; if(f) readFile(f); }
 
   function readFile(file) {
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = async e => {
       try {
         const doc = JSON.parse(e.target.result);
-        loading('verifyStatus', '서명 및 온체인 기록 검증 중...');
+        loading('verifyStatus','서명 및 온체인 기록 검증 중...');
         $('verifyResult').classList.add('hidden');
-        const r = await apiFetch('/api/v1/credential/verify', {
-          method: 'POST',
-          body: JSON.stringify({ document: doc }),
-        });
-        renderVerify(r, 'Document (크로스 인스턴스 지원)');
-        setStatus('verifyStatus', '✓ 검증 완료', 'ok');
-      } catch (err) {
-        setStatus('verifyStatus', err.message, 'err');
-      }
+        const r = await apiFetch('/api/v1/credential/verify', { method:'POST', body: JSON.stringify({ document: doc }) });
+        renderVerify(r,'Document 검증 (크로스 인스턴스 지원)');
+        setStatus('verifyStatus','✓ 검증 완료','ok');
+      } catch(err) { setStatus('verifyStatus', err.message, 'err'); }
     };
     reader.readAsText(file);
   }
 
   async function runVerifyById() {
     const id = $('credentialId').value.trim();
-    if (!id) { setStatus('verifyStatus', 'Credential ID를 입력하세요.', 'err'); return; }
-    loading('verifyStatus', '검증 중...');
+    if (!id) { setStatus('verifyStatus','Credential ID를 입력하세요.','err'); return; }
+    loading('verifyStatus','검증 중...');
     $('verifyResult').classList.add('hidden');
     try {
       const r = await apiFetch(`/api/v1/credential/verify/${encodeURIComponent(id)}`);
-      renderVerify(r, 'ID 조회 (동일 인스턴스)');
-      setStatus('verifyStatus', '✓ 검증 완료', 'ok');
-    } catch (e) {
-      setStatus('verifyStatus', e.message, 'err');
-    }
+      renderVerify(r,'ID 조회 (동일 인스턴스)');
+      setStatus('verifyStatus','✓ 검증 완료','ok');
+    } catch(e) { setStatus('verifyStatus', e.message, 'err'); }
   }
 
   function renderVerify(r, method) {
     const overall = r.is_valid && !r.is_tampered;
     const subj = r.credential_subject || {};
-    const skills = (subj.topSkills || []).slice(0, 5);
-    const domainScores = subj.domainScores || {};
+    const domains = subj.domainScores || {};
+    const skills = (subj.topSkills||[]).slice(0,6);
+    const domainEntries = Object.entries(domains).sort((a,b)=>b[1]-a[1]);
+    const maxD = Math.max(...domainEntries.map(e=>e[1]), 1);
+    const topDomain = domainEntries[0]?.[0];
+    const bars = domainEntries.map(([name,val])=>`
+      <div class="bar-row${name===topDomain?' top':''}">
+        <div class="bar-name">${esc(name)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(val/maxD*100).toFixed(1)}%"></div></div>
+        <div class="bar-val">${val.toFixed(1)}</div>
+      </div>`).join('');
 
     $('verifyResult').innerHTML = `
       <div class="card">
-        <div class="verdict">
-          <div class="verdict-icon">${overall ? '✅' : '❌'}</div>
-          <div class="verdict-text ${overall ? 'valid' : 'invalid'}">
-            <div class="main">${overall ? '검증 완료 — 유효한 자격증명' : '검증 실패 — 유효하지 않은 자격증명'}</div>
-            <div class="sub">${esc(method)}</div>
+        <div class="verdict-wrap">
+          <div class="verdict-icon">${overall?'✅':'❌'}</div>
+          <div>
+            <div class="verdict-main ${overall?'valid':'invalid'}">${overall?'검증 완료 — 유효한 자격증명':'검증 실패 — 유효하지 않은 자격증명'}</div>
+            <div class="verdict-sub">${esc(method)}</div>
           </div>
         </div>
-
-        <div class="check-row">
-          <div class="check-icon">${r.is_valid ? '✓' : '✗'}</div>
-          <div class="check-label">서명 검증 (Ed25519)</div>
-          <div class="check-value ${r.is_valid ? 'yes' : 'no'}">${r.is_valid ? '유효' : '실패'}</div>
+        <div class="check-list">
+          <div class="check-item">
+            <div class="ci-dot">${r.is_valid?'✓':'✗'}</div>
+            <div class="ci-lbl">서명 검증 (Ed25519Signature2020)</div>
+            <div class="ci-val ${r.is_valid?'yes':'no'}">${r.is_valid?'유효':'실패'}</div>
+          </div>
+          <div class="check-item">
+            <div class="ci-dot">${!r.is_tampered?'✓':'✗'}</div>
+            <div class="ci-lbl">무결성 — 위변조 없음</div>
+            <div class="ci-val ${!r.is_tampered?'yes':'no'}">${!r.is_tampered?'정상':'변조 감지'}</div>
+          </div>
+          <div class="check-item">
+            <div class="ci-dot">${r.is_on_chain?'✓':'○'}</div>
+            <div class="ci-lbl">온체인 기록 (Polygon Amoy)</div>
+            <div class="ci-val ${r.is_on_chain?'yes':'warn'}">${r.is_on_chain?'확인됨':'미기록'}</div>
+          </div>
         </div>
-        <div class="check-row">
-          <div class="check-icon">${!r.is_tampered ? '✓' : '✗'}</div>
-          <div class="check-label">무결성 (위변조 없음)</div>
-          <div class="check-value ${!r.is_tampered ? 'yes' : 'no'}">${!r.is_tampered ? '정상' : '변조 감지'}</div>
+        <div class="subj-grid">
+          <div><div class="sg-k">GitHub 사용자</div><div class="sg-v">${esc(subj.githubUsername||'—')}</div></div>
+          <div><div class="sg-k">종합 점수</div><div class="sg-v">${subj.overallScore??'—'}</div></div>
+          <div><div class="sg-k">주요 도메인</div><div class="sg-v">${esc(subj.primaryDomain||'—')}</div></div>
+          <div><div class="sg-k">영향력 레벨</div><div class="sg-v">${esc(subj.influenceLevel||'—')}</div></div>
+          ${skills.length?`<div style="grid-column:1/-1"><div class="sg-k">주요 기술</div><div style="margin-top:5px"><div class="pills">${skills.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div></div></div>`:''}
+          ${r.blockchain_tx?`<div style="grid-column:1/-1"><div class="sg-k">블록체인 TX</div><div class="sg-v mono">${esc(r.blockchain_tx)}</div></div>`:''}
         </div>
-        <div class="check-row">
-          <div class="check-icon">${r.is_on_chain ? '✓' : '○'}</div>
-          <div class="check-label">온체인 기록 (Polygon Amoy)</div>
-          <div class="check-value ${r.is_on_chain ? 'yes' : 'warn'}">${r.is_on_chain ? '확인됨' : '미기록'}</div>
-        </div>
-
-        <div class="subject-grid">
-          <div class="subject-item">
-            <div class="sk">GitHub 사용자</div>
-            <div class="sv">${esc(subj.githubUsername || '—')}</div>
-          </div>
-          <div class="subject-item">
-            <div class="sk">종합 점수</div>
-            <div class="sv">${subj.overallScore ?? '—'}</div>
-          </div>
-          <div class="subject-item">
-            <div class="sk">주요 도메인</div>
-            <div class="sv">${esc(subj.primaryDomain || '—')}</div>
-          </div>
-          <div class="subject-item">
-            <div class="sk">영향력 레벨</div>
-            <div class="sv">${esc(subj.influenceLevel || '—')}</div>
-          </div>
-          <div class="subject-item" style="grid-column:1/-1">
-            <div class="sk">주요 기술</div>
-            <div class="pill-row" style="margin-top:6px">${skills.map(s => `<span class="pill">${esc(s)}</span>`).join('') || '—'}</div>
-          </div>
-          ${r.blockchain_tx ? `
-          <div class="subject-item" style="grid-column:1/-1">
-            <div class="sk">블록체인 TX</div>
-            <div class="sv" style="font-size:0.78rem;font-family:monospace;word-break:break-all">${esc(r.blockchain_tx)}</div>
-          </div>` : ''}
-        </div>
-
-        <details style="margin-top:14px">
-          <summary>전체 VC 문서 보기</summary>
-          <pre class="json">${esc(JSON.stringify({ issuer: r.issuer, issued_at: r.issued_at, credential_subject: r.credential_subject }, null, 2))}</pre>
+        ${bars?`<div class="sec-label">도메인 적합도</div><div class="bar-list">${bars}</div>`:''}
+        ${subj.evaluationBasis?`<div class="explain-box" style="margin-top:16px"><div class="explain-eye">분석 방법론</div><div class="explain-sum">${esc(subj.evaluationBasis)}</div></div>`:''}
+        <details><summary>전체 VC 내용 보기</summary>
+          <pre class="raw">${esc(JSON.stringify({issuer:r.issuer,issued_at:r.issued_at,credential_subject:subj},null,2))}</pre>
         </details>
-      </div>
-    `;
+      </div>`;
     $('verifyResult').classList.remove('hidden');
-  }
-
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 </script>
 </body>

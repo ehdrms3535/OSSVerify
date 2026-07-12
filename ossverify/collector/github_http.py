@@ -109,6 +109,18 @@ class GitHubHTTPClient:
                 break
         return results
 
+    def search_code_count(self, query: str) -> int:
+        """GitHub code search로 매칭 파일 수(total_count)를 반환한다. 실패 시 0."""
+        _SEARCH_LIMITER.acquire()
+        try:
+            resp = self.request("GET", f"{GITHUB_API_BASE}/search/code",
+                                params={"q": query, "per_page": 1})
+            if resp.status_code == 200:
+                return resp.json().get("total_count", 0)
+        except Exception:
+            pass
+        return 0
+
     def get_repo(self, full_name: str) -> dict:
         if full_name in self.repo_cache:
             return self.repo_cache[full_name]

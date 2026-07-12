@@ -107,6 +107,7 @@ class Repository:
     has_readme: bool
     has_contributing_guide: bool
     description: str = ""
+    primary_language: str = ""
 
 
 @dataclass
@@ -141,6 +142,7 @@ class GitHubData:
     releases: List[Release] = field(default_factory=list)
 
     languages: Dict[str, int] = field(default_factory=dict)
+    repo_languages: Dict[str, str] = field(default_factory=dict)  # repo_full_name → primary_language
     activity_ratio: Optional[ActivityRatio] = None
 
 
@@ -176,10 +178,11 @@ class GitHubCollector:
     # GraphQL — 레포 메타데이터 + 언어 + 릴리즈 한 번에
     # -------------------------------------------------------------------------
 
-    def _collect_repos_graphql(self, username: str) -> Tuple[List[Repository], Dict[str, int], List[Release]]:
+    def _collect_repos_graphql(self, username: str) -> Tuple[List[Repository], Dict[str, int], List[Release], Dict[str, str]]:
         repos: List[Repository] = []
         languages: Dict[str, int] = {}
         releases: List[Release] = []
+        repo_languages: Dict[str, str] = {}
         cursor = None
         page = 0
 
@@ -197,6 +200,12 @@ class GitHubCollector:
                 has_readme = bool(node.get("description") or node.get("stargazerCount", 0) > 5)
                 has_contributing = node.get("stargazerCount", 0) > 100
 
+                # primary language = 첫 번째 edge (GraphQL: SIZE 내림차순)
+                lang_edges = [(e["node"]["name"], e["size"])
+                              for e in (node.get("languages") or {}).get("edges") or []
+                              if e and e.get("node")]
+                primary_lang = lang_edges[0][0] if lang_edges else ""
+
                 repo = Repository(
                     full_name=full_name,
                     stars=node["stargazerCount"],
@@ -204,8 +213,11 @@ class GitHubCollector:
                     description=node.get("description") or "",
                     has_readme=has_readme,
                     has_contributing_guide=has_contributing,
+                    primary_language=primary_lang,
                 )
                 repos.append(repo)
+                if primary_lang:
+                    repo_languages[full_name] = primary_lang
 
                 # PR 수집 시 get_repo() REST 재호출 방지용 캐시 선채움
                 self.client.repo_cache[full_name] = {
@@ -215,11 +227,8 @@ class GitHubCollector:
                     "full_name": full_name,
                 }
 
-                for edge in (node.get("languages") or {}).get("edges") or []:
-                    if not edge or not edge.get("node"):
-                        continue
-                    lang = edge["node"]["name"]
-                    languages[lang] = languages.get(lang, 0) + edge["size"]
+                for lang, size in lang_edges:
+                    languages[lang] = languages.get(lang, 0) + size
 
                 for rel in (node.get("releases") or {}).get("nodes") or []:
                     releases.append(Release(
@@ -234,7 +243,7 @@ class GitHubCollector:
                 break
             cursor = page_info["endCursor"]
 
-        return repos, languages, releases
+        return repos, languages, releases, repo_languages
 
     # -------------------------------------------------------------------------
     # PR 수집 — 내부 per-PR 병렬 (리뷰 확인 N호출)
@@ -433,7 +442,7 @@ class GitHubCollector:
             f_commits = pool.submit(self._collect_commits, username)
             f_reviews = pool.submit(self._collect_reviews, username)
 
-            owned_repos, languages, releases = f_repos.result()
+            owned_repos, languages, releases, repo_languages = f_repos.result()
             contributed_prs, received_prs = f_prs.result()
             contributed_issues, received_issues = f_issues.result()
             contributed_commits = f_commits.result()
@@ -458,5 +467,71 @@ class GitHubCollector:
             maintainer_reviews=maintainer_reviews,
             releases=releases,
             languages=languages,
+            repo_languages=repo_languages,
             activity_ratio=ActivityRatio.from_counts(contributor_activities, maintainer_activities),
         )
+
+    # ── 언어별 특징 파일 수 (GitHub code search) ──────────────────────────────
+
+    # 언어별 특징 파일 패턴
+    _LANG_FILE_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
+        "Python":     [("requirements.txt", "filename:requirements.txt"),
+                       ("pyproject.toml",   "filename:pyproject.toml"),
+                       ("pytest 설정",       "filename:conftest.py")],
+        "Java":       [("pom.xml",          "filename:pom.xml"),
+                       ("build.gradle",     "filename:build.gradle"),
+                       ("application.yml",  "filename:application.yml")],
+        "Kotlin":     [("build.gradle.kts", "filename:build.gradle.kts"),
+                       ("application.yml",  "filename:application.yml")],
+        "JavaScript": [("package.json",     "filename:package.json"),
+                       ("webpack.config",   "filename:webpack.config.js")],
+        "TypeScript": [("tsconfig.json",    "filename:tsconfig.json"),
+                       ("package.json",     "filename:package.json")],
+        "Go":         [("go.mod",           "filename:go.mod")],
+        "Rust":       [("Cargo.toml",       "filename:Cargo.toml")],
+        "C++":        [("CMakeLists.txt",   "filename:CMakeLists.txt")],
+        "Ruby":       [("Gemfile",          "filename:Gemfile")],
+        "PHP":        [("composer.json",    "filename:composer.json")],
+        "Scala":      [("build.sbt",        "filename:build.sbt")],
+        "Solidity":   [("hardhat.config",   "filename:hardhat.config.js"),
+                       ("truffle-config",   "filename:truffle-config.js")],
+    }
+
+    # 인프라/DevOps 공통 패턴 (언어 무관)
+    _CROSS_FILE_PATTERNS: List[Tuple[str, str]] = [
+        ("Dockerfile",         "filename:Dockerfile"),
+        ("docker-compose.yml", "filename:docker-compose.yml"),
+        ("GitHub Actions",     "path:.github/workflows"),
+        ("k8s Deployment",     "filename:deployment.yaml"),
+        ("k8s Service",        "filename:service.yaml"),
+        ("Helm chart",         "filename:Chart.yaml"),
+        ("Terraform",          "filename:main.tf"),
+    ]
+
+    def collect_file_patterns(
+        self, username: str, skills: List[str]
+    ) -> Dict[str, List[Tuple[str, int]]]:
+        """언어별 특징 파일 + 인프라 공통 파일 수를 GitHub code search로 집계한다."""
+        result: Dict[str, List[Tuple[str, int]]] = {}
+
+        # 인프라/DevOps 공통 패턴
+        cross: List[Tuple[str, int]] = []
+        for label, query in self._CROSS_FILE_PATTERNS:
+            count = self.client.search_code_count(f"{query} user:{username}")
+            if count > 0:
+                cross.append((label, count))
+        if cross:
+            result["_infra"] = cross
+
+        # 언어별 패턴
+        for skill in skills[:5]:
+            patterns = self._LANG_FILE_PATTERNS.get(skill, [])
+            counts: List[Tuple[str, int]] = []
+            for label, query in patterns:
+                count = self.client.search_code_count(f"{query} user:{username}")
+                if count > 0:
+                    counts.append((label, count))
+            if counts:
+                result[skill] = counts
+
+        return result
