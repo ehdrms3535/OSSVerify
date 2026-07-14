@@ -791,6 +791,12 @@
     const subj = r.credential_subject || {};
     const domains = subj.domainScores || {};
     const skills = (subj.topSkills||[]).slice(0,6);
+    const skillEvidence = subj.skillEvidence || [];
+    const growthData = subj.growthData || [];
+    const repoTrust = subj.repoTrust || [];
+    const cs = subj.contributorScore || {};
+    const ms = subj.maintainerScore || {};
+
     const domainEntries = Object.entries(domains).sort((a,b)=>b[1]-a[1]);
     const maxD = Math.max(...domainEntries.map(e=>e[1]), 1);
     const topDomain = domainEntries[0]?.[0];
@@ -800,6 +806,53 @@
         <div class="bar-track"><div class="bar-fill" style="width:${(val/maxD*100).toFixed(1)}%"></div></div>
         <div class="bar-val">${val.toFixed(1)}</div>
       </div>`).join('');
+
+    // Skill Evidence 카드
+    const seCards = skillEvidence.map(se=>`
+      <div class="se-card">
+        <div class="se-head">
+          <span class="se-lang">${esc(se.skill)}</span>
+          <span class="se-pct">${se.confidence!=null?se.confidence.toFixed(1)+'%':''}</span>
+        </div>
+        <div class="pills">${(se.evidence_items||[]).map(i=>`<span class="pill">${esc(i)}</span>`).join('')||'<span class="pill muted">증거 없음</span>'}</div>
+      </div>`).join('');
+
+    // 성장 분석 캔버스 ID
+    const growthCanvasId = 'verifyGrowthCanvas';
+
+    // Repository 신뢰도
+    const repoRows = repoTrust.map(repo=>{
+      const sc = repo.trust_score??0;
+      return `<div class="repo-row">
+        <div class="repo-name">${esc((repo.name||'').split('/')[1]||repo.name||'')}</div>
+        <div class="repo-badges">
+          ${repo.stars>0?`<span class="badge">★${repo.stars}</span>`:''}
+          ${repo.ext_prs>0?`<span class="badge">PR ${repo.ext_prs}</span>`:''}
+          ${repo.releases>0?`<span class="badge">릴리즈 ${repo.releases}</span>`:''}
+        </div>
+        <div class="repo-score-wrap">
+          <span class="repo-score">${sc.toFixed(1)}</span>
+          <div class="repo-bar-track"><div class="repo-bar-fill" style="width:${sc}%"></div></div>
+        </div>
+      </div>`;}).join('');
+
+    // 기여자/Maintainer 상세
+    const contribRows = [
+      ['PR 머지율', cs.pr_merge_rate],['리뷰 품질', cs.review_quality],
+      ['Maintainer 승인', cs.maintainer_approval],['프로젝트 규모', cs.project_scale],
+      ['기여 지속성', cs.contribution_consistency],['이슈 해결률', cs.issue_resolution_rate],
+    ].filter(([,v])=>v!=null).map(([l,v])=>`
+      <div class="bk-row"><span class="bk-lbl">${l}</span>
+      <div class="bk-bar-track"><div class="bk-bar-fill" style="width:${Math.min(v,100)}%"></div></div>
+      <span class="bk-val">${Number(v).toFixed(1)}</span></div>`).join('');
+    const maintRows = [
+      ['채택률', ms.adoption_rate],['커뮤니티 활동', ms.community_activity],
+      ['PR 리뷰 품질', ms.review_quality_as_maintainer],['이슈 응답', ms.issue_response_speed],
+      ['릴리즈 지속성', ms.release_consistency],['문서화', ms.documentation_score],
+    ].filter(([,v])=>v!=null).map(([l,v])=>`
+      <div class="bk-row"><span class="bk-lbl">${l}</span>
+      <div class="bk-bar-track"><div class="bk-bar-fill" style="width:${Math.min(v,100)}%"></div></div>
+      <span class="bk-val">${Number(v).toFixed(1)}</span></div>`).join('');
 
     $('verifyResult').innerHTML = `
       <div class="card">
@@ -811,36 +864,40 @@
           </div>
         </div>
         <div class="check-list">
-          <div class="check-item">
-            <div class="ci-dot">${r.is_valid?'✓':'✗'}</div>
-            <div class="ci-lbl">서명 검증 (Ed25519Signature2020)</div>
-            <div class="ci-val ${r.is_valid?'yes':'no'}">${r.is_valid?'유효':'실패'}</div>
-          </div>
-          <div class="check-item">
-            <div class="ci-dot">${!r.is_tampered?'✓':'✗'}</div>
-            <div class="ci-lbl">무결성 — 위변조 없음</div>
-            <div class="ci-val ${!r.is_tampered?'yes':'no'}">${!r.is_tampered?'정상':'변조 감지'}</div>
-          </div>
-          <div class="check-item">
-            <div class="ci-dot">${r.is_on_chain?'✓':'○'}</div>
-            <div class="ci-lbl">온체인 기록 (Polygon Amoy)</div>
-            <div class="ci-val ${r.is_on_chain?'yes':'warn'}">${r.is_on_chain?'확인됨':'미기록'}</div>
-          </div>
+          <div class="check-item"><div class="ci-dot">${r.is_valid?'✓':'✗'}</div><div class="ci-lbl">서명 검증 (Ed25519Signature2020)</div><div class="ci-val ${r.is_valid?'yes':'no'}">${r.is_valid?'유효':'실패'}</div></div>
+          <div class="check-item"><div class="ci-dot">${!r.is_tampered?'✓':'✗'}</div><div class="ci-lbl">무결성 — 위변조 없음</div><div class="ci-val ${!r.is_tampered?'yes':'no'}">${!r.is_tampered?'정상':'변조 감지'}</div></div>
+          <div class="check-item"><div class="ci-dot">${r.is_on_chain?'✓':'○'}</div><div class="ci-lbl">온체인 기록 (Polygon Amoy)</div><div class="ci-val ${r.is_on_chain?'yes':'warn'}">${r.is_on_chain?'확인됨':'미기록'}</div></div>
         </div>
+
         <div class="subj-grid">
           <div><div class="sg-k">GitHub 사용자</div><div class="sg-v">${esc(subj.githubUsername||'—')}</div></div>
-          <div><div class="sg-k">종합 점수</div><div class="sg-v">${subj.overallScore??'—'}</div></div>
+          <div><div class="sg-k">종합 점수</div><div class="sg-v">${subj.overallScore??'—'}${subj.rankLabel?`<br><span style="font-size:.75rem;color:var(--teal)">${esc(subj.rankLabel)}</span>`:''}</div></div>
           <div><div class="sg-k">주요 도메인</div><div class="sg-v">${esc(subj.primaryDomain||'—')}</div></div>
           <div><div class="sg-k">영향력 레벨</div><div class="sg-v">${esc(subj.influenceLevel||'—')}</div></div>
           ${skills.length?`<div style="grid-column:1/-1"><div class="sg-k">주요 기술</div><div style="margin-top:5px"><div class="pills">${skills.map(s=>`<span class="pill">${esc(s)}</span>`).join('')}</div></div></div>`:''}
           ${r.blockchain_tx?`<div style="grid-column:1/-1"><div class="sg-k">블록체인 TX</div><div class="sg-v mono">${esc(r.blockchain_tx)}</div></div>`:''}
         </div>
+
         ${bars?`<div class="sec-label">도메인 적합도</div><div class="bar-list">${bars}</div>`:''}
+
+        ${seCards?`<div class="sec-label">Skill Evidence</div><div class="se-grid">${seCards}</div>`:''}
+
+        ${growthData.length?`<div class="sec-label">성장 분석</div><div class="canvas-wrap"><canvas id="${growthCanvasId}" height="160"></canvas></div>`:''}
+
+        ${contribRows?`<div class="sec-label">기여자 역량</div><div class="bk-grid">${contribRows}</div>`:''}
+        ${maintRows?`<div class="sec-label">Maintainer 역량</div><div class="bk-grid">${maintRows}</div>`:''}
+
+        ${repoRows?`<div class="sec-label">Repository 신뢰도</div><div class="repo-list">${repoRows}</div>`:''}
+
         ${subj.evaluationBasis?`<div class="explain-box" style="margin-top:16px"><div class="explain-eye">분석 방법론</div><div class="explain-sum">${esc(subj.evaluationBasis)}</div></div>`:''}
         <details><summary>전체 VC 내용 보기</summary>
           <pre class="raw">${esc(JSON.stringify({issuer:r.issuer,issued_at:r.issued_at,credential_subject:subj},null,2))}</pre>
         </details>
       </div>`;
+
+    if (growthData.length) drawGrowthChart(growthCanvasId, growthData);
+    $('verifyResult').classList.remove('hidden');
+  }
     $('verifyResult').classList.remove('hidden');
   }
 </script>

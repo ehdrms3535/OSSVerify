@@ -22,6 +22,11 @@ class ProfessionalProfile:
     maintainer_score: Optional[Dict[str, Any]] = None
     graph_centrality: Optional[Dict[str, Any]] = None
     activity_ratio: Optional[Dict[str, Any]] = None
+    skill_evidence: Optional[List[Dict[str, Any]]] = None
+    growth_data: Optional[List[Dict[str, Any]]] = None
+    repo_trust: Optional[List[Dict[str, Any]]] = None
+    percentile_rank: Optional[float] = None
+    rank_label: Optional[str] = None
 
 
 class ProfileBuilder:
@@ -37,6 +42,11 @@ class ProfileBuilder:
         maintainer_score: Optional[Dict[str, Any]] = None,
         graph_centrality: Optional[Dict[str, Any]] = None,
         activity_ratio: Optional[Dict[str, Any]] = None,
+        skill_evidence: Optional[List[Dict[str, Any]]] = None,
+        growth_data: Optional[List[Dict[str, Any]]] = None,
+        repo_trust: Optional[List[Dict[str, Any]]] = None,
+        percentile_rank: Optional[float] = None,
+        rank_label: Optional[str] = None,
     ) -> ProfessionalProfile:
         return ProfessionalProfile(
             github_username=github_username,
@@ -52,4 +62,9 @@ class ProfileBuilder:
             maintainer_score=maintainer_score,
             graph_centrality=graph_centrality,
             activity_ratio=activity_ratio,
+            skill_evidence=skill_evidence,
+            growth_data=growth_data,
+            repo_trust=repo_trust,
+            percentile_rank=percentile_rank,
+            rank_label=rank_label,
         )

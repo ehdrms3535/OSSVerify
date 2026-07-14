@@ -437,6 +437,11 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         maintainer_score=maintainer_score_dict,
         graph_centrality=graph_centrality_dict,
         activity_ratio=activity_ratio_dict,
+        skill_evidence=skill_evidence_list,
+        growth_data=growth_data,
+        repo_trust=repo_trust,
+        percentile_rank=percentile_rank,
+        rank_label=rank_label,
     )
     _profile_store[data.username.lower()] = profile
 

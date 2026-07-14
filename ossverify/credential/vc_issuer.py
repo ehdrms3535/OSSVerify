@@ -235,10 +235,17 @@ class VCIssuer:
                 "primaryDomain": profile.primary_domain,
                 "secondaryDomain": profile.secondary_domain,
                 "overallScore": round(profile.overall_score, 2),
+                "percentileRank": profile.percentile_rank,
+                "rankLabel": profile.rank_label,
                 "influenceLevel": profile.influence_level,
                 "activityLevel": profile.activity_level,
                 "topSkills": profile.top_skills,
                 "domainScores": profile.domain_scores,
+                "contributorScore": profile.contributor_score,
+                "maintainerScore": profile.maintainer_score,
+                "skillEvidence": profile.skill_evidence,
+                "growthData": profile.growth_data,
+                "repoTrust": profile.repo_trust,
                 "evaluationBasis": (
                     "Algorithmic analysis of public GitHub activity data "
                     "(commits, pull requests, issues, code reviews). "
