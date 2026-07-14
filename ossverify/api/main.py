@@ -5,7 +5,6 @@ import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
-from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -17,6 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ossverify.analyzer.domain_analyzer import Domain, DomainAnalyzer
+from ossverify.analyzer.percentile_scorer import PercentileScorer
 from ossverify.analyzer.explanation_generator import ExplanationGenerator, ExplanationInput, ExplanationOutput
 from ossverify.analyzer.graph_analyzer import GraphAnalyzer
 from ossverify.analyzer.growth_analyzer import analyze_growth
@@ -43,6 +43,8 @@ try:
     _domain_analyzer: Optional[DomainAnalyzer] = DomainAnalyzer()
 except FileNotFoundError:
     _domain_analyzer = None
+
+_percentile_scorer: PercentileScorer = PercentileScorer.load()
 
 try:
     _explanation_generator: Optional[ExplanationGenerator] = (
@@ -438,6 +440,18 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
     )
     _profile_store[data.username.lower()] = profile
 
+    # ── 백분위 ─────────��────────────────────────────────────────────────────
+    percentile_rank: Optional[float] = None
+    rank_label: Optional[str] = None
+    if _percentile_scorer.is_available():
+        percentile_rank = _percentile_scorer.percentile(
+            domain=primary_domain,
+            metric="overall_score",
+            value=final_score.overall_score,
+        )
+        if percentile_rank is not None:
+            rank_label = _percentile_scorer.rank_label(percentile_rank)
+
     return {
         "github_username": data.username,
         "overall_score": round(final_score.overall_score, 2),
@@ -458,6 +472,8 @@ def _do_analyze(request: AnalyzeRequest) -> dict:
         "skill_evidence": skill_evidence_list,
         "growth_data": growth_data,
         "repo_trust": repo_trust,
+        "percentile_rank": percentile_rank,
+        "rank_label": rank_label,
         "analyzed_at": profile.analyzed_at.isoformat(),
     }
 

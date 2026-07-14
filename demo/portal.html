@@ -491,7 +491,7 @@
     $('analyzeResult').innerHTML = `
       <div class="sec-label">종합 지표</div>
       <div class="tile-grid">
-        <div class="tile hi"><div class="tile-val">${fmt(r.overall_score)}</div><div class="tile-lbl">종합 점수</div></div>
+        <div class="tile hi"><div class="tile-val">${fmt(r.overall_score)}</div><div class="tile-lbl">종합 점수${r.rank_label ? `<br><span style="font-size:.75rem;color:var(--teal)">${esc(r.rank_label)}</span>` : ''}</div></div>
         <div class="tile"><div class="tile-val">${fmt(cs.total)}</div><div class="tile-lbl">기여자 점수</div></div>
         <div class="tile"><div class="tile-val">${fmt(ms.total)}</div><div class="tile-lbl">메인테이너</div></div>
         <div class="tile"><div class="tile-val">${fmt(gc.combined)}</div><div class="tile-lbl">그래프 영향력</div></div>
